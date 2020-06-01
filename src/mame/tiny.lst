@@ -1,0 +1,180 @@
+/******************************************************************************
+
+    tiny.lst
+
+    List of all enabled drivers in the system. This file is parsed by
+    makelist.exe, sorted, and output as C code describing the drivers.
+
+****************************************************************************
+
+    Copyright Aaron Giles
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above copyright
+          notice, this list of conditions and the following disclaimer in
+          the documentation and/or other materials provided with the
+          distribution.
+        * Neither the name 'MAME' nor the names of its contributors may be
+          used to endorse or promote products derived from this software
+          without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
+    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
+    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+    POSSIBILITY OF SUCH DAMAGE.
+
+******************************************************************************/
+
+/******* aleck64.c *******/
+
+aleck64
+11beat
+mtetrisc
+starsldr
+vivdolls
+srmvs
+twrshaft
+hipai
+doncdoon
+kurufev
+mayjin3
+
+
+/******* bnstars.c *******/
+
+bnstars1
+
+
+/******* ms32.c *******/
+
+hayaosi2
+hayaosi3
+bbbxing
+47pie2
+47pie2o
+desertwr
+gametngk
+tetrisp
+p47aces
+akiss
+gratia
+gratiaa
+kirarast
+tp2m32
+bnstars
+wpksocv2
+f1superb
+
+
+/******* jalmah.c *******/
+
+urashima
+daireika
+mjzoomin
+kakumei
+kakumei2
+suchipi
+
+
+/******* fromance.c *******/
+
+nekkyoku
+idolmj
+mjnatsu
+natsuiro
+mfunclub
+daiyogen
+nmsengen
+fromance
+
+
+/******* fromanc2.c *******/
+
+fromanc2
+fromancr
+fromanc4
+
+
+/******* psikyo4 *******/
+
+hotgmck
+hgkairak
+hotgmck3
+hotgm4ev
+hotgmcki
+loderndf
+loderndfa
+hotdebut
+
+
+/******* srmp2.c *******/
+
+srmp1
+srmp2
+srmp3
+rmgoldyh
+mjyuugi
+mjyuugia
+ponchin
+ponchina
+
+
+/******* srmp5.c *******/
+
+srmp5
+
+
+
+/******* srmp6.c *******/
+
+srmp6
+
+
+/******* ssv.c *******/
+
+dynagear
+keithlcy
+srmp4
+srmp4o
+survarts
+survartsu
+survartsj
+drifto94
+eaglshot
+hypreact
+twineag2
+gdfs 
+ultrax
+janjans1
+meosism
+stmblade
+stmbladej
+hypreac2
+jsk
+koikois2
+mslider
+srmp7
+ryorioh
+sxyreact
+sxyreac2
+cairblad
+janjans2
+vasara
+vasara2
+vasara2a
+
+
+
