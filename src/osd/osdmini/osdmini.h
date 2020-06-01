@@ -11,6 +11,8 @@
 #include "modules/lib/osdobj_common.h"
 
 
+#define printk osd_printf_info
+
 class mini_osd_options : public osd_options
 {
 public:
@@ -33,6 +35,13 @@ public:
 	// general overridables
 	virtual void init(running_machine &machine);
 	virtual void update(bool skip_redraw);
+
+private:
+	int fb_fd, fb_xres, fb_yres, fb_bpp, fb_pitch;
+	UINT8 *fb_addr;
+
+	int fb_init(void);
+
 };
 
 

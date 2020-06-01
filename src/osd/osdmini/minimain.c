@@ -10,7 +10,18 @@
 #include "osdepend.h"
 #include "render.h"
 #include "clifront.h"
+#include "osdcore.h"
 #include "osdmini.h"
+#include "rendersw.inc"
+
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <linux/fb.h>
 
 
 //============================================================
@@ -105,6 +116,9 @@ mini_osd_interface::~mini_osd_interface()
 
 void mini_osd_interface::init(running_machine &machine)
 {
+
+	fb_init();
+
 	// call our parent
 	osd_common_t::init(machine);
 	osd_common_t::init_subsystems();
@@ -137,6 +151,43 @@ void mini_osd_interface::init(running_machine &machine)
 //  add_logerror_callback(machine, output_oslog);
 }
 
+//============================================================
+//  framebuffer init
+//============================================================
+
+int mini_osd_interface::fb_init(void)
+{
+	struct fb_fix_screeninfo finfo;
+	struct fb_var_screeninfo vinfo;
+
+	fb_fd = open("/dev/fb0", O_RDWR);
+	if(fb_fd<0){
+		fatalerror("Open fb0 failed!\n");
+		return -1;
+	}
+
+	ioctl(fb_fd, FBIOGET_FSCREENINFO, &finfo);
+	ioctl(fb_fd, FBIOGET_VSCREENINFO, &vinfo);
+
+	fb_xres = vinfo.xres;
+	fb_yres = vinfo.yres;
+	fb_bpp  = vinfo.bits_per_pixel;
+	fb_pitch = finfo.line_length;
+
+	fb_addr = (UINT8*)mmap(0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_fd, 0);
+
+	printk("/dev/fb0: %dx%d-%d\n", fb_xres, fb_yres, fb_bpp);
+	printk("     map: %08x  len: %08x\n", fb_addr, finfo.smem_len);
+
+	int i;
+	for(i=0; i<10000; i++){
+		int pp = i&0xff;
+		*(UINT32*)(fb_addr+i*4) = (pp<<16) | ((0xff-pp)<<8) | (pp>>4);
+	}
+
+
+	return 0;
+}
 
 //============================================================
 //  osd_update
@@ -158,6 +209,12 @@ void mini_osd_interface::update(bool skip_redraw)
 	primlist.acquire_lock();
 
 	// do the drawing here
+	if(fb_bpp==32){
+		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(primlist, fb_addr, minwidth, minheight, fb_pitch/4);
+	}else if(fb_bpp==16){
+		software_renderer<UINT16, 3,2,3, 11,5,0>::draw_primitives(primlist, fb_addr, minwidth, minheight, fb_pitch/2);
+	}
+
 	primlist.release_lock();
 
 	// after 5 seconds, exit
@@ -178,3 +235,19 @@ static INT32 keyboard_get_state(void *device_internal, void *item_internal)
 	UINT8 *keystate = (UINT8 *)item_internal;
 	return *keystate;
 }
+
+
+/******************************************************************************/
+
+
+/******************************************************************************/
+
+
+
+
+
+
+
+/******************************************************************************/
+
+
