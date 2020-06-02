@@ -35,6 +35,7 @@ public:
 	// general overridables
 	virtual void init(running_machine &machine);
 	virtual void update(bool skip_redraw);
+	virtual void osd_exit();
 
 private:
 	int fb_fd, fb_xres, fb_yres, fb_bpp, fb_pitch;
