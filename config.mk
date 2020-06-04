@@ -1,0 +1,21 @@
+
+PKG_CONFIG = pkg-config
+
+TARGET = mame
+SUBTARGET = tiny
+OSD = osdmini
+
+TARGETOS = linux
+PTR64 = 1
+SYMBOLS = 1
+OPTIMIZE = 0
+NOWERROR = 1
+
+DONT_USE_NETWORK = 1
+
+SDL_LIBVER = sdl
+NO_OPENGL = 1
+NO_X11 = 1
+NO_USE_QTDEBUG = 1
+
+
