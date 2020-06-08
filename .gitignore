@@ -13,6 +13,8 @@ src/regtests/chdman/temp
 src/regtests/jedutil/output
 *.pyc
 
+config.mk
+
 minimametiny64
 mametiny64
 mame64
