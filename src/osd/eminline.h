@@ -260,6 +260,8 @@ INLINE float recip_approx(float value)
 #ifndef count_leading_zeros
 INLINE UINT8 count_leading_zeros(UINT32 val)
 {
+	if(val==0)
+		return 32;
 	UINT8 count;
 	for (count = 0; (INT32)val >= 0; count++) val <<= 1;
 	return count;

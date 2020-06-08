@@ -385,6 +385,8 @@ int mini_osd_interface::fb_init(void)
 	printk("/dev/fb0: %dx%d-%d\n", fb_xres, fb_yres, fb_bpp);
 	printk("     map: %p  len: %08x\n", fb_addr, finfo.smem_len);
 
+	memset(fb_addr, 0, finfo.smem_len);
+
 
 	return 0;
 }
@@ -393,14 +395,39 @@ int mini_osd_interface::fb_init(void)
 //  osd_update
 //============================================================
 
+
+static int old_width=0, old_height=0;
+static int nw=0, nh=0;
+static UINT8 *fb_ptr = NULL;
+
 void mini_osd_interface::update(bool skip_redraw)
 {
 	// get the minimum width/height for the current layout
 	int minwidth, minheight;
 	our_target->compute_minimum_size(minwidth, minheight);
 
+	if(old_width!=minwidth || old_height!=minheight){
+		printk("Change res to %dx%d\n", minwidth, minheight);
+		old_width = minwidth;
+		old_height = minheight;
+
+		nw = (minwidth * fb_yres) / minheight;
+		if(nw<fb_xres){
+			nh = fb_yres;
+			fb_ptr = fb_addr + ((fb_xres-nw)/2)*(fb_bpp/8);
+		}else{
+			nh = (minheight * fb_xres) / minwidth;
+			nw = fb_xres;
+			fb_ptr = fb_addr + ((fb_yres-nh)/2)*fb_pitch;
+		}
+		printk("Scale: %dx%d\n", nw, nh);
+
+	}
+
 	// make that the size of our target
-	our_target->set_bounds(minwidth, minheight);
+	our_target->set_bounds(nw, nh);
+	//our_target->set_bounds(minwidth, minheight);
+
 
 	// get the list of primitives for the target at the current size
 	render_primitive_list &primlist = our_target->get_primitives();
@@ -410,9 +437,9 @@ void mini_osd_interface::update(bool skip_redraw)
 
 	// do the drawing here
 	if(fb_bpp==32){
-		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(primlist, fb_addr, minwidth, minheight, fb_pitch/4);
+		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(primlist, fb_ptr, nw, nh, fb_pitch/4);
 	}else if(fb_bpp==16){
-		software_renderer<UINT16, 3,2,3, 11,5,0>::draw_primitives(primlist, fb_addr, minwidth, minheight, fb_pitch/2);
+		software_renderer<UINT16, 3,2,3, 11,5,0>::draw_primitives(primlist, fb_ptr, nw, nh, fb_pitch/2);
 	}
 
 	primlist.release_lock();
