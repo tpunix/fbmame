@@ -1,0 +1,28 @@
+
+CROSS_BUILD = 1
+PTR64 = 1
+CROSS = /f/h3/buildroot-2020.02.2/output/host/bin/aarch64-linux-gnu-
+PKG_CONFIG = /f/h3/buildroot-2020.02.2/output/host/bin/pkg-config
+SDL_INSTALL_ROOT = /f/h3/buildroot-2020.02.2/output/host/aarch64-buildroot-linux-gnu/sysroot/usr
+NOASM = 1
+NOWERROR = 1
+
+
+TARGET = mame
+SUBTARGET = tiny
+#OSD = sdl
+OSD = osdmini
+
+TARGETOS = linux
+SYMBOLS = 1
+OPTIMIZE = 3
+
+
+DONT_USE_NETWORK = 1
+
+SDL_LIBVER = sdl
+NO_OPENGL = 1
+NO_X11 = 1
+NO_USE_QTDEBUG = 1
+
+
