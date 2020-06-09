@@ -2135,7 +2135,7 @@ void saturn_state::read_new_dir(UINT32 fileno)
 // makes the directory pointed to by FAD current
 void saturn_state::make_dir_current(UINT32 fad)
 {
-	int i;
+	uint32_t i;
 	UINT32 nextent, numentries;
 	dynamic_buffer sect(MAX_DIR_SIZE);
 	direntryT *curentry;

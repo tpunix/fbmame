@@ -28,38 +28,39 @@ CPUOBJS += $(CPUOBJ)/vtlb.o
 #-------------------------------------------------
 
 DRCOBJ = \
-	$(CPUOBJ)/drcbec.o \
 	$(CPUOBJ)/drcbeut.o \
 	$(CPUOBJ)/drccache.o \
 	$(CPUOBJ)/drcfe.o \
 	$(CPUOBJ)/drcuml.o \
 	$(CPUOBJ)/uml.o \
 	$(CPUOBJ)/i386dasm.o \
-	$(CPUOBJ)/x86log.o \
-	$(CPUOBJ)/drcbex86.o \
-	$(CPUOBJ)/drcbex64.o \
+	$(CPUOBJ)/x86log.o
 
 
 DRCDEPS = \
-	$(CPUSRC)/drcbec.h \
 	$(CPUSRC)/drcbeut.h \
 	$(CPUSRC)/drccache.h \
 	$(CPUSRC)/drcfe.h \
 	$(CPUSRC)/drcuml.h \
 	$(CPUSRC)/drcumlsh.h \
 	$(CPUSRC)/uml.h \
-	$(CPUSRC)/drcbex86.h \
-	$(CPUSRC)/drcbex64.h \
 	$(CPUSRC)/x86emit.h \
 
 # fixme - need to make this work for other target architectures (PPC)
 
 ifndef FORCE_DRC_C_BACKEND
 ifeq ($(PTR64),1)
-DEFS += -DNATIVE_DRC=drcbe_x64
+DEFS    += -DNATIVE_DRC=drcbe_x64
+DRCOBJ  += $(CPUOBJ)/drcbex64.o
+DRCDEPS += $(CPUSRC)/drcbex64.h
 else
 DEFS += -DNATIVE_DRC=drcbe_x86
+DRCOBJ  += $(CPUOBJ)/drcbex86.o
+DRCDEPS += $(CPUSRC)/drcbex86.h
 endif
+else
+DRCOBJ  += $(CPUOBJ)/drcbec.o
+DRCDEPS += $(CPUSRC)/drcbec.h
 endif
 
 

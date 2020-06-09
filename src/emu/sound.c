@@ -108,6 +108,7 @@ sound_stream::sound_stream(device_t &device, int inputs, int outputs, int sample
 
 	// set up the initial output buffer positions now that we have data
 	m_output_base_sampindex = -m_max_samples_per_update;
+
 }
 
 
@@ -641,6 +642,12 @@ stream_sample_t *sound_stream::generate_resampled_data(stream_input &input, UINT
 
 	// grab data from the output
 	stream_output &output = *input.m_source;
+	if (output.m_stream == NULL)
+	{
+		memset(dest, 0, numsamples * sizeof(*dest));
+		return input.m_resample;
+	}
+
 	sound_stream &input_stream = *output.m_stream;
 	INT64 gain = (input.m_gain * input.m_user_gain * output.m_gain) >> 16;
 

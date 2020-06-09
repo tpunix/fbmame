@@ -182,14 +182,17 @@ public:
 			m_e90_pal(*this,"e90pal"),
 			m_dip_read_offset(0) { }
 
-	optional_shared_ptr<UINT32> m_e90_vram;
-	optional_shared_ptr<UINT32> m_e90_pal;
 	DECLARE_DRIVER_INIT(aleck64);
 	DECLARE_WRITE32_MEMBER(aleck_dips_w);
 	DECLARE_READ32_MEMBER(aleck_dips_r);
 	DECLARE_READ16_MEMBER(e90_prot_r);
 	DECLARE_WRITE16_MEMBER(e90_prot_w);
 	UINT32 screen_update_e90(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+
+protected:
+	optional_shared_ptr<UINT32> m_e90_vram;
+	optional_shared_ptr<UINT32> m_e90_pal;
+
 private:
 	UINT32 m_dip_read_offset;
 };
@@ -312,6 +315,7 @@ static ADDRESS_MAP_START( n64_map, AS_PROGRAM, 32, aleck64_state )
 	AM_RANGE(0x04600000, 0x046fffff) AM_DEVREADWRITE("rcp", n64_periphs, pi_reg_r, pi_reg_w)    // Peripheral Interface
 	AM_RANGE(0x04700000, 0x047fffff) AM_DEVREADWRITE("rcp", n64_periphs, ri_reg_r, ri_reg_w)    // RDRAM Interface
 	AM_RANGE(0x04800000, 0x048fffff) AM_DEVREADWRITE("rcp", n64_periphs, si_reg_r, si_reg_w)    // Serial Interface
+	AM_RANGE(0x08000000, 0x0801ffff) AM_RAM AM_SHARE("sram")                                    // Cartridge SRAM
 	AM_RANGE(0x10000000, 0x13ffffff) AM_ROM AM_REGION("user2", 0)   // Cartridge
 	AM_RANGE(0x1fc00000, 0x1fc007bf) AM_ROM AM_REGION("user1", 0)   // PIF ROM
 	AM_RANGE(0x1fc007c0, 0x1fc007ff) AM_DEVREADWRITE("rcp", n64_periphs, pif_ram_r, pif_ram_w)

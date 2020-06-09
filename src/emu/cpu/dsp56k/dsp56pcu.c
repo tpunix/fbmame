@@ -145,7 +145,7 @@ void pcu_reset(dsp56k_core* cpustate)
 				/* P:$cfff -> Internal P:$07ff high byte */
 				UINT8 mem_value_low  = cpustate->program->read_byte(mem_offset);        /* TODO: IS THIS READING RIGHT? */
 				UINT8 mem_value_high = cpustate->program->read_byte(mem_offset);
-				cpustate->program_ram[i] = (mem_value_high << 8) || mem_value_low;
+				cpustate->program_ram[i] = (mem_value_high << 8) | mem_value_low;
 			}
 
 			/* HACK - Set the PC to 0x0000 as per the boot ROM. */

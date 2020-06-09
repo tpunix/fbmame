@@ -119,7 +119,7 @@ static int counter_from_ram( UINT8 *data, int offset )
 
 timekeeper_device::timekeeper_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_nvram_interface(mconfig, *this)
+		device_nvram_interface(mconfig, *this), m_default_data(NULL)
 {
 }
 
@@ -228,10 +228,11 @@ void timekeeper_device::device_start()
 	m_century = make_bcd( systime.local_time.year / 100 );
 	m_data.resize( m_size );
 
-	m_default_data = region()->base();
-	if (m_default_data)
-	{
-		assert( region()->bytes() == m_size );
+	if(region()){
+		m_default_data = region()->base();
+		if (m_default_data) {
+			assert( region()->bytes() == m_size );
+		}
 	}
 
 	save_item( NAME(m_control) );

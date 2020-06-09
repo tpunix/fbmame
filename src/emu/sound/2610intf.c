@@ -141,9 +141,6 @@ void ym2610_device::device_start()
 	ay8910_device::device_start();
 
 	int rate = clock()/72;
-	void *pcmbufa,*pcmbufb;
-	int  pcmsizea,pcmsizeb;
-	astring name;
 
 	m_irq_handler.resolve();
 
@@ -154,6 +151,20 @@ void ym2610_device::device_start()
 	/* stream system initialize */
 	m_stream = machine().sound().stream_alloc(*this,0,2,rate, stream_update_delegate(FUNC(ym2610_device::stream_generate),this));
 	/* setup adpcm buffers */
+#if 1
+	void *pcmbufa  = region()->base();
+	int pcmsizea = region()->bytes();
+
+	std::string name = tag() + std::string(".deltat");
+	memory_region *deltat_region = machine().root_device().memregion(name.c_str());
+	void *pcmbufb = pcmbufa;
+	int pcmsizeb = pcmsizea;
+	if (deltat_region != NULL && deltat_region->base() != NULL && deltat_region->bytes() != 0)
+	{
+		pcmbufb = deltat_region->base();
+		pcmsizeb = deltat_region->bytes();
+	}
+#else
 	pcmbufa  = region()->base();
 	pcmsizea = region()->bytes();
 	name.printf("%s.deltat", tag());
@@ -164,6 +175,7 @@ void ym2610_device::device_start()
 		pcmbufb = pcmbufa;
 		pcmsizeb = pcmsizea;
 	}
+#endif
 
 	/**** initialize YM2610 ****/
 	m_chip = ym2610_init(this,this,clock(),rate,
@@ -206,13 +218,13 @@ const device_type YM2610 = &device_creator<ym2610_device>;
 
 ym2610_device::ym2610_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: ay8910_device(mconfig, YM2610, "YM2610", tag, owner, clock, PSG_TYPE_YM, 1, 0, "ym2610", __FILE__),
-		m_irq_handler(*this)
+	m_irq_handler(*this)
 {
 }
 
 ym2610_device::ym2610_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: ay8910_device(mconfig, type, name, tag, owner, clock, PSG_TYPE_YM, 1, 0, shortname, source),
-		m_irq_handler(*this)
+	m_irq_handler(*this)
 {
 }
 

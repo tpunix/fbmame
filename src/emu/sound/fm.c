@@ -3681,7 +3681,16 @@ void ym2610_reset_chip(void *chip)
 	F2610->pcmbuf   = (const UINT8 *)dev->machine().root_device().memregion(name)->base();
 	F2610->pcm_size = dev->machine().root_device().memregion(name)->bytes();
 	name.printf("%s.deltat",dev->tag());
+#if 1
+	memory_region *deltat_region = dev->machine().root_device().memregion(name);
+	F2610->deltaT.memory = NULL;
+	if (deltat_region != NULL)
+	{
+		F2610->deltaT.memory = (UINT8 *)deltat_region->base();
+	}
+#else
 	F2610->deltaT.memory = (UINT8 *)dev->machine().root_device().memregion(name)->base();
+#endif
 	if(F2610->deltaT.memory == NULL)
 	{
 		F2610->deltaT.memory = (UINT8*)F2610->pcmbuf;
