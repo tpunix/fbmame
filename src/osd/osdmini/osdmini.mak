@@ -80,6 +80,7 @@ OSDOBJS = \
 	$(OSDOBJ)/modules/sound/js_sound.o  \
 	$(OSDOBJ)/modules/sound/direct_sound.o  \
 	$(OSDOBJ)/modules/sound/sdl_sound.o  \
+	$(OSDOBJ)/modules/sound/alsa_sound.o  \
 	$(OSDOBJ)/modules/sound/none.o  \
 	$(OSDOBJ)/modules/font/font_sdl.o \
 	$(OSDOBJ)/modules/font/font_windows.o \
