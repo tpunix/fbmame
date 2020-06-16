@@ -1,5 +1,7 @@
 
 CROSS_BUILD = 1
+
+FORCE_DRC_C_BACKEND = 1
 PTR64 = 1
 CROSS = /f/h3/buildroot-2020.02.2/output/host/bin/aarch64-linux-gnu-
 PKG_CONFIG = /f/h3/buildroot-2020.02.2/output/host/bin/pkg-config

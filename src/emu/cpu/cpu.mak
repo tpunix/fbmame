@@ -58,10 +58,9 @@ DEFS += -DNATIVE_DRC=drcbe_x86
 DRCOBJ  += $(CPUOBJ)/drcbex86.o
 DRCDEPS += $(CPUSRC)/drcbex86.h
 endif
-else
+endif
 DRCOBJ  += $(CPUOBJ)/drcbec.o
 DRCDEPS += $(CPUSRC)/drcbec.h
-endif
 
 
 $(DRCOBJ): $(DRCDEPS)

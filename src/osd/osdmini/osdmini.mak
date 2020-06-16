@@ -99,7 +99,7 @@ ifeq ($(OS),Windows_NT)
 LIBS += -lwinmm -lwsock32
 endif
 
-LIBS += -lpthread
+LIBS += -lasound -lpthread
 
 
 #-------------------------------------------------
