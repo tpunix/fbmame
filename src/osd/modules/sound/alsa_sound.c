@@ -9,6 +9,7 @@
 *******************************************************************c********/
 
 #include <time.h>
+#include <sys/time.h>
 
 #include "sound_module.h"
 #include "modules/osdmodule.h"
@@ -50,7 +51,7 @@ private:
 /******************************************************************************/
 
 static snd_pcm_t *snd_pcm;
-static snd_pcm_uframes_t period_size = 60; // in frames
+static snd_pcm_uframes_t period_size = 96; // in frames
 static snd_pcm_uframes_t buffer_size;       // in frames
 
 
@@ -60,15 +61,18 @@ static snd_pcm_uframes_t buffer_size;       // in frames
 int sound_alsa::init()
 {
 	snd_pcm_hw_params_t *hw_params;
+	snd_pcm_sw_params_t* sw_params;
 	int retv;
 
 	printk("Sound_ALSA init!\n");
 
-	retv = snd_pcm_open(&snd_pcm, "default", SND_PCM_STREAM_PLAYBACK, 0);
+	retv = snd_pcm_open(&snd_pcm, "hw:0,0", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
+	//retv = snd_pcm_open(&snd_pcm, "hw:0,0", SND_PCM_STREAM_PLAYBACK, 0);
 	if(retv<0){
 		printk("Can't open audio device!\n");
 		return retv;
 	}
+	//snd_pcm_nonblock(snd_pcm, 1);
 
 	snd_pcm_hw_params_alloca(&hw_params);
 	snd_pcm_hw_params_any(snd_pcm, hw_params);
@@ -88,6 +92,7 @@ int sound_alsa::init()
 	}
 	printk("  period_size: %d\n", (int)period_size);
 
+
 	buffer_size = sample_rate();
 	retv = snd_pcm_hw_params_set_buffer_size_near(snd_pcm, hw_params, &buffer_size);
 	if(retv<0){
@@ -101,6 +106,13 @@ int sound_alsa::init()
 		printk("Can't set hw audio params!\n");
 		return retv;
 	}
+
+#if 1
+	snd_pcm_sw_params_alloca(&sw_params);
+	snd_pcm_sw_params_current(snd_pcm, sw_params);
+	snd_pcm_sw_params_set_start_threshold(snd_pcm, sw_params, 9600);
+	snd_pcm_sw_params(snd_pcm, sw_params);
+#endif
 
 	retv = snd_pcm_prepare(snd_pcm);
 	if(retv<0){
@@ -134,7 +146,6 @@ int xrun_recovery(snd_pcm_t *handle, int err)
 		err = snd_pcm_prepare(handle);
 	 	if (err < 0)
 			printk("Can't recovery from underrun, prepare failed: %s\n",snd_strerror(err));
-		return err;
 	} else if (err == -ESTRPIPE) {
 		while ((err = snd_pcm_resume(handle)) == -EAGAIN)
 			sleep(1);       /* wait until the suspend flag is released */
@@ -143,22 +154,41 @@ int xrun_recovery(snd_pcm_t *handle, int err)
 			if (err < 0)
 				printk("Can't recovery from suspend, prepare failed: %s\n", snd_strerror(err));
 		}
-		return 0;
 	}
 
 	return err;  
 }
 
+
+
+static clock_t tm_old=0, tm_new=0;
+
 void sound_alsa::update_audio_stream(bool is_throttled, const INT16 *buffer, int samples_this_frame)
 {
 	int retv;
 
+	if(tm_old==0){
+		//samples_this_frame *= 10;
+	}
+
+	tm_new = clock();
+	if(tm_new-tm_old >= CLOCKS_PER_SEC){
+		tm_old = tm_new;
+		snd_pcm_sframes_t avial = snd_pcm_avail(snd_pcm);
+		printk("avial: %d\n", (int)avial);
+	}
+
 	while(samples_this_frame){
 		retv = snd_pcm_writei(snd_pcm, buffer, samples_this_frame);
+		//printk("snd_pcm_writei: %d frames, retv=%d\n", samples_this_frame, retv);
 		if(retv<0){
-			retv = xrun_recovery(snd_pcm, retv);
-			if(retv<0){
+			printk("snd_pcm_writei: %s\n", snd_strerror(retv));
+			if(xrun_recovery(snd_pcm, retv)<0){
 				break;
+			}
+			if(retv==-EPIPE){
+				//printk("extra write...\n");
+				//snd_pcm_writei(snd_pcm, buffer, samples_this_frame);
 			}
 			continue;
 		}
