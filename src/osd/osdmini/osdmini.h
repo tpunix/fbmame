@@ -38,11 +38,6 @@ public:
 	virtual void osd_exit();
 
 private:
-	int fb_fd, fb_xres, fb_yres, fb_bpp, fb_pitch;
-	UINT8 *fb_addr;
-
-	int fb_init(void);
-
 };
 
 
@@ -61,6 +56,14 @@ extern int osd_num_processors;
 //============================================================
 //  FUNCTION PROTOTYPES
 //============================================================
+
+INT64 get_time(void);
+
+
+void video_init_fbcon(void);
+void video_update_fbcon(render_target *our_target);
+void video_exit_fbcon(void);
+
 
 // use this to ping the watchdog
 void winmain_watchdog_ping(void);

@@ -176,11 +176,13 @@ static render_target *our_target;
 // a single input device
 static input_device *keyboard_device;
 
+UINT8 vt_keystate[128];
 
 
 //============================================================
 //  FUNCTION PROTOTYPES
 //============================================================
+
 
 static INT32 keyboard_get_state(void *device_internal, void *item_internal);
 
@@ -230,104 +232,13 @@ mini_osd_interface::~mini_osd_interface()
 }
 
 
-//============================================================
-//  init
-//============================================================
-
-static int vtfd, vtkmode, new_vt, current_vt;
-static struct termios new_termios, cur_termios;
-static UINT8 vt_keystate[128];
-
-static void vt_init(void)
-{
-	int fd;
-	struct vt_stat vtstate;
-	char vpath[16];
-
-	memset(vt_keystate, 0, sizeof(vt_keystate));
-
-	fd = open("/dev/tty0", O_RDWR);
-	ioctl(fd, VT_GETSTATE, &vtstate);
-	current_vt = vtstate.v_active;
-	ioctl(fd, VT_OPENQRY, &new_vt);
-	close(fd);
-
-	sprintf(vpath, "/dev/tty%d", new_vt);
-	vtfd = open(vpath, O_RDWR|O_NONBLOCK);
-	if(vtfd>0){
-		printk("Switch VT from %d to %d\n", current_vt, new_vt);
-		ioctl(vtfd, VT_ACTIVATE, new_vt);
-		ioctl(vtfd, VT_WAITACTIVE, new_vt);
-
-		tcgetattr(vtfd, &cur_termios);
-		new_termios = cur_termios;
-		cfmakeraw(&new_termios);
-		tcsetattr(vtfd, TCSAFLUSH, &new_termios);
-
-		ioctl(vtfd, KDSETMODE, KD_GRAPHICS);
-
-		ioctl(vtfd, KDGKBMODE, &vtkmode);
-		ioctl(vtfd, KDSKBMODE, K_MEDIUMRAW);
-	}else{
-		printk("Open %s failed!\n", vpath);
-	}
-
-}
-
-static void vt_exit(void)
-{
-	if(vtfd>0){
-		ioctl(vtfd, KDSKBMODE, vtkmode);
-
-		ioctl(vtfd, KDSETMODE, KD_TEXT);
-
-		tcsetattr(vtfd, TCSAFLUSH, &cur_termios);
-
-		ioctl(vtfd, VT_ACTIVATE, current_vt);
-		ioctl(vtfd, VT_WAITACTIVE, current_vt);
-
-		close(vtfd);
-		vtfd = -1;
-	}
-}
-
-static int vt_update_key(void)
-{
-	int retv;
-	UINT8 key;
-
-	while(1){
-		retv = read(vtfd, &key, 1);
-		if(retv<=0)
-			break;
-
-		if(key&0x80){
-			vt_keystate[key&0x7f] = 0;
-		}else{
-			vt_keystate[key&0x7f] = key;
-		}
-	}
-
-	return key;
-}
-
-static void sigint_handle(int signum)
-{
-	printk("\nsigint_handle!\n");
-	vt_exit();
-	exit(1);
-}
-
 /******************************************************************************/
 
 
 void mini_osd_interface::init(running_machine &machine)
 {
-	signal(SIGINT, sigint_handle);
 
-	vt_init();
-
-	fb_init();
+	video_init_fbcon();
 
 	// call our parent
 	osd_common_t::init(machine);
@@ -351,109 +262,28 @@ void mini_osd_interface::init(running_machine &machine)
 			break;
 
 		int sc = key_trans_table[i].scan_key;
-		keyboard_device->add_item(key_trans_table[i].ui_name, key_trans_table[i].mame_key, keyboard_get_state, &vt_keystate[sc]);
+		keyboard_device->add_item(
+				key_trans_table[i].ui_name, key_trans_table[i].mame_key, keyboard_get_state, &vt_keystate[sc]);
 		i += 1;
 	}
 
 }
 
-//============================================================
-//  framebuffer init
-//============================================================
-
-int mini_osd_interface::fb_init(void)
-{
-	struct fb_fix_screeninfo finfo;
-	struct fb_var_screeninfo vinfo;
-
-	fb_fd = open("/dev/fb0", O_RDWR);
-	if(fb_fd<0){
-		fatalerror("Open /dev/fb0 failed!\n");
-		return -1;
-	}
-
-	ioctl(fb_fd, FBIOGET_FSCREENINFO, &finfo);
-	ioctl(fb_fd, FBIOGET_VSCREENINFO, &vinfo);
-
-	fb_xres = vinfo.xres;
-	fb_yres = vinfo.yres;
-	fb_bpp  = vinfo.bits_per_pixel;
-	fb_pitch = finfo.line_length;
-
-	fb_addr = (UINT8*)mmap(0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_fd, 0);
-
-	printk("/dev/fb0: %dx%d-%d\n", fb_xres, fb_yres, fb_bpp);
-	printk("     map: %p  len: %08x\n", fb_addr, finfo.smem_len);
-
-	memset(fb_addr, 0, finfo.smem_len);
-
-
-	return 0;
-}
 
 //============================================================
 //  osd_update
 //============================================================
 
-
-static int old_width=0, old_height=0;
-static int nw=0, nh=0;
-static UINT8 *fb_ptr = NULL;
-
 void mini_osd_interface::update(bool skip_redraw)
 {
-	// get the minimum width/height for the current layout
-	int minwidth, minheight;
-	our_target->compute_minimum_size(minwidth, minheight);
-
-	if(old_width!=minwidth || old_height!=minheight){
-		printk("Change res to %dx%d\n", minwidth, minheight);
-		old_width = minwidth;
-		old_height = minheight;
-
-		nw = (minwidth * fb_yres) / minheight;
-		if(nw<fb_xres){
-			nh = fb_yres;
-			fb_ptr = fb_addr + ((fb_xres-nw)/2)*(fb_bpp/8);
-		}else{
-			nh = (minheight * fb_xres) / minwidth;
-			nw = fb_xres;
-			fb_ptr = fb_addr + ((fb_yres-nh)/2)*fb_pitch;
-		}
-		printk("Scale: %dx%d\n", nw, nh);
-
-	}
-
-	// make that the size of our target
-	our_target->set_bounds(nw, nh);
-
-	// get the list of primitives for the target at the current size
-	render_primitive_list &primlist = our_target->get_primitives();
-
-	// lock them, and then render them
-	primlist.acquire_lock();
-
-	// do the drawing here
-	if(fb_bpp==32){
-		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(primlist, fb_ptr, nw, nh, fb_pitch/4);
-	}else if(fb_bpp==16){
-		software_renderer<UINT16, 3,2,3, 11,5,0>::draw_primitives(primlist, fb_ptr, nw, nh, fb_pitch/2);
-	}
-
-	primlist.release_lock();
-
-	vt_update_key();
-
-	// after 5 seconds, exit
-	//if (machine().time() > attotime::from_seconds(5))
-	//	machine().schedule_exit();
+	video_update_fbcon(our_target);
 }
 
 void mini_osd_interface::osd_exit(void)
 {
 	printk("\nosd_exit!\n");
 
-	vt_exit();
+	video_exit_fbcon();
 }
 
 //============================================================
@@ -462,23 +292,20 @@ void mini_osd_interface::osd_exit(void)
 
 static INT32 keyboard_get_state(void *device_internal, void *item_internal)
 {
-	// this function is called by the input system to get the current key
-	// state; it is specified as a callback when adding items to input
-	// devices
 	UINT8 *keystate = (UINT8 *)item_internal;
 	return *keystate;
 }
 
 
-/******************************************************************************/
-
 
 /******************************************************************************/
 
 
-
-
-
+char *osd_get_clipboard_text(void)
+{
+	// can't support clipboards generically
+	return NULL;
+}
 
 
 /******************************************************************************/

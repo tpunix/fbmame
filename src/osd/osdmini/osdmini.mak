@@ -63,10 +63,10 @@ OBJDIRS += $(MINIOBJ) \
 OSDCOREOBJS = \
 	$(MINIOBJ)/minidir.o \
 	$(MINIOBJ)/minifile.o \
-	$(MINIOBJ)/minimisc.o \
-	$(MINIOBJ)/minisync.o \
-	$(MINIOBJ)/minitime.o \
+	$(OSDOBJ)/modules/lib/osdlib_unix.o \
+	$(OSDOBJ)/modules/sync/sync_tc.o \
 	$(OSDOBJ)/modules/osdmodule.o
+
 
 #-------------------------------------------------
 # OSD mini library
@@ -74,6 +74,7 @@ OSDCOREOBJS = \
 
 OSDOBJS = \
 	$(MINIOBJ)/minimain.o \
+	$(MINIOBJ)/video_fbcon.o \
 	$(OSDOBJ)/modules/sync/work_mini.o \
 	$(OSDOBJ)/modules/lib/osdobj_common.o  \
 	$(OSDOBJ)/modules/midi/none.o \
@@ -100,6 +101,7 @@ LIBS += -lwinmm -lwsock32
 endif
 
 LIBS += -lasound -lpthread
+BASELIBS += -lpthread
 
 
 #-------------------------------------------------

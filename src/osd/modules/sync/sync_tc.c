@@ -13,9 +13,9 @@
 #define _GNU_SOURCE     // for PTHREAD_MUTEX_RECURSIVE; needs to be here before other glibc headers are included
 #endif
 
-#include "sdlinc.h"
 
 #ifdef SDLMAME_MACOSX
+#include "sdlinc.h"
 #include <mach/mach.h>
 #endif
 
