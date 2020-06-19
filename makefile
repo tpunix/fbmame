@@ -359,16 +359,22 @@ ifneq ($(OS2_SHELL),)
 BUILD_EXE = .exe
 endif
 
+ifeq ($(V),1)
+ECHO =
+else
+ECHO = @
+endif
+
 # compiler, linker and utilities
 ifneq ($(TARGETOS),emscripten)
-AR = @$(CROSS)ar
-CC = @$(CROSS)gcc
-LD = @$(CROSS)g++
+AR = $(ECHO)$(CROSS)ar
+CC = $(ECHO)$(CROSS)gcc
+LD = $(ECHO)$(CROSS)g++
 endif
 MD = -mkdir$(BUILD_EXE)
 RM = @rm -f
-OBJDUMP = @$(CROSS)objdump
-PYTHON = @python
+OBJDUMP = $(ECHO)$(CROSS)objdump
+PYTHON = $(ECHO)python
 
 
 #-------------------------------------------------
