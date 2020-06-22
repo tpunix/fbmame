@@ -178,6 +178,8 @@ static input_device *keyboard_device;
 
 UINT8 vt_keystate[128];
 
+int osdmini_run = 0;
+
 
 //============================================================
 //  FUNCTION PROTOTYPES
@@ -267,6 +269,7 @@ void mini_osd_interface::init(running_machine &machine)
 		i += 1;
 	}
 
+	osdmini_run = 1;
 }
 
 
@@ -281,6 +284,10 @@ void mini_osd_interface::update(bool skip_redraw)
 
 void mini_osd_interface::osd_exit(void)
 {
+	osdmini_run = 0;
+
+	osd_common_t::osd_exit();
+
 	printk("\nosd_exit!\n");
 
 	video_exit_fbcon();

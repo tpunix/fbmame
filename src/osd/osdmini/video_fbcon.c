@@ -11,6 +11,7 @@
 #include "render.h"
 #include "clifront.h"
 #include "osdcore.h"
+#include "modules/sync/osdsync.h"
 #include "osdmini.h"
 #include "rendersw.inc"
 
@@ -29,6 +30,8 @@
 
 
 /******************************************************************************/
+
+#define USE_THREAD_RENDER
 
 //#define USE_CURRENT_VT
 
@@ -135,6 +138,13 @@ static UINT8 *fb_win_addr;
 static fb_var_screeninfo g_vinfo;
 
 
+#ifdef USE_THREAD_RENDER
+static osd_event *render_event;
+static osd_thread *render_thread;
+static render_target *thread_render_target;
+static void *video_fbcon_render_thread(void *param);
+#endif
+
 static int fb_init(void)
 {
 	struct fb_fix_screeninfo finfo;
@@ -170,6 +180,11 @@ static int fb_init(void)
 	memset(fb_base_addr, 0, finfo.smem_len);
 
 	fb_win_addr = fb_base_addr;
+
+#ifdef USE_THREAD_RENDER
+	render_event = osd_event_alloc(0, 0);
+	render_thread = osd_thread_create(video_fbcon_render_thread, NULL);
+#endif
 
 	return 0;
 }
@@ -210,7 +225,7 @@ static int fps=0;
 void video_show_fps(void)
 {
 	fps += 1;
-	vtm_new = get_time();
+	vtm_new = osd_ticks();
 	if(vtm_new - vtm_sec >= 1000000){
 		printk("  fps: %d\n", fps);
 		fps = 0;
@@ -220,7 +235,8 @@ void video_show_fps(void)
 	vtm_old = vtm_new;
 }
 
-void video_update_fbcon(render_target *our_target)
+
+static void do_render(render_target *our_target)
 {
 
 	//video_show_fps();
@@ -272,6 +288,35 @@ void video_update_fbcon(render_target *our_target)
 	vt_update_key();
 }
 
+void video_update_fbcon(render_target *our_target)
+{
+#ifdef USE_THREAD_RENDER
+	thread_render_target = our_target;
+	osd_event_set(render_event);
+#else
+	do_render(our_target);
+#endif
+
+}
+
+#ifdef USE_THREAD_RENDER
+
+static void *video_fbcon_render_thread(void *param)
+{
+
+	while(1){
+		osd_event_wait(render_event, OSD_EVENT_WAIT_INFINITE);
+		if(osdmini_run==0)
+			break;
+
+		do_render(thread_render_target);
+	}
+
+	printk("video_fbcon_render_thread stop!\n");
+	return NULL;
+}
+
+#endif
 
 /******************************************************************************/
 
@@ -287,6 +332,7 @@ void video_init_fbcon(void)
 
 void video_exit_fbcon(void)
 {
+	printk("video_exit_fbcon!\n");
 	vt_exit();
 }
 

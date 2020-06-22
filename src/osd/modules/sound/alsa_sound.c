@@ -54,6 +54,7 @@ static snd_pcm_t *snd_pcm;
 static snd_pcm_uframes_t period_size = 96; // in frames
 static snd_pcm_uframes_t buffer_size;       // in frames
 
+static INT16 *snd_buf = NULL;
 
 /******************************************************************************/
 
@@ -107,7 +108,7 @@ int sound_alsa::init()
 		return retv;
 	}
 
-#if 1
+#if 0
 	snd_pcm_sw_params_alloca(&sw_params);
 	snd_pcm_sw_params_current(snd_pcm, sw_params);
 	snd_pcm_sw_params_set_start_threshold(snd_pcm, sw_params, sample_rate()/10);
@@ -120,6 +121,8 @@ int sound_alsa::init()
 		return retv;
 	}
 
+	snd_buf = (INT16*)malloc(sample_rate()*4);
+
 	return 0;
 }
 
@@ -127,6 +130,7 @@ int sound_alsa::init()
 void sound_alsa::exit()
 {
 	printk("Sound_ALSA exit!\n");
+	free(snd_buf);
 	snd_pcm_drop(snd_pcm);
 	snd_pcm_close(snd_pcm);
 }
@@ -161,58 +165,25 @@ int xrun_recovery(snd_pcm_t *handle, int err)
 
 
 
-
-#define SECOND_US 1000000
-
-static INT64 tm_base = 0;
-
-INT64 get_time(void)
-{
-	struct timeval t;
-	INT64 r;
-
-	gettimeofday(&t, NULL);
-
-	r = t.tv_sec * SECOND_US + t.tv_usec;
-	if(tm_base==0){
-		tm_base = r;
-	}
-
-	return r-tm_base;
-}
-
-
-static INT64 tm_old=0, tm_new=0;
-static INT16 *snd_buf = NULL;
-
 void sound_alsa::update_audio_stream(bool is_throttled, const INT16 *buffer, int samples_this_frame)
 {
-	snd_pcm_sframes_t avial;
 	int retv;
 
-	if(snd_buf==NULL){
-		snd_buf = (INT16*)malloc(sample_rate()*4);
-	}
-
-	tm_new = get_time();
-	INT64 samples_time = (samples_this_frame * SECOND_US) / sample_rate();
-	INT64 delta_time = tm_new - tm_old - samples_time;
-	tm_old = tm_new;
-
-	avial = snd_pcm_avail(snd_pcm);
-	//printk("snd: %10d  %6d   avial:%d\n", (int)tm_new, (int)delta_time, (int)avial);
-
-	if(avial>15000){
-		memcpy(snd_buf, buffer, samples_this_frame*4);
-		memcpy(snd_buf+samples_this_frame*4, buffer, samples_this_frame*4);
+	snd_pcm_sframes_t avial = snd_pcm_avail(snd_pcm);
+	//printk("snd: avial = %d\n", (int)avial);
+	if(avial>=(buffer_size - samples_this_frame*2)){
+		int i;
+		for(i=0; i<samples_this_frame; i++){
+			*(UINT32*)(snd_buf+i*8+0) = *(UINT32*)(buffer+i*4);
+			*(UINT32*)(snd_buf+i*8+4) = *(UINT32*)(buffer+i*4);
+		}
 		samples_this_frame *= 2;
 		buffer = snd_buf;
-		printk("snd_pcm_writei: extra write...\n");
+		printk("snd_pcm_writei: resample ...\n");
 	}
 
 	while(samples_this_frame){
 		retv = snd_pcm_writei(snd_pcm, buffer, samples_this_frame);
-		//printk("snd_pcm_writei: %d frames, retv=%d\n", samples_this_frame, retv);
 		if(retv<0){
 			printk("snd_pcm_writei: %s\n", snd_strerror(retv));
 			if(xrun_recovery(snd_pcm, retv)<0){

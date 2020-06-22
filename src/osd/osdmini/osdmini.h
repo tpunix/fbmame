@@ -51,13 +51,13 @@ extern const options_entry mame_win_options[];
 // defined in winwork.c
 extern int osd_num_processors;
 
+extern int osdmini_run;
+
 
 
 //============================================================
 //  FUNCTION PROTOTYPES
 //============================================================
-
-INT64 get_time(void);
 
 
 void video_init_fbcon(void);
