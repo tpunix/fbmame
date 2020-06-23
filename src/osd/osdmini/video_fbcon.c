@@ -33,7 +33,7 @@
 
 #define USE_THREAD_RENDER
 
-//#define USE_CURRENT_VT
+#define USE_CURRENT_VT
 
 static int vtfd, vtkmode, new_vt, current_vt;
 static struct termios new_termios, cur_termios;
@@ -141,7 +141,6 @@ static fb_var_screeninfo g_vinfo;
 #ifdef USE_THREAD_RENDER
 static osd_event *render_event;
 static osd_thread *render_thread;
-static render_target *thread_render_target;
 static void *video_fbcon_render_thread(void *param);
 #endif
 
@@ -235,10 +234,35 @@ void video_show_fps(void)
 	vtm_old = vtm_new;
 }
 
-
-static void do_render(render_target *our_target)
+struct render_param
 {
+	render_target *target;
+	render_primitive_list *primlist;
 
+	UINT8 *fb_draw_ptr;
+	int nw;
+	int nh;
+};
+
+static struct render_param rparam;
+
+static void do_render(struct render_param *pr)
+{
+	// do the drawing here
+	if(fb_bpp==32){
+		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*pr->primlist, pr->fb_draw_ptr, pr->nw, pr->nh, fb_pitch/4);
+	}else if(fb_bpp==16){
+		software_renderer<UINT16, 3,2,3, 11,5,0>::draw_primitives(*pr->primlist, pr->fb_draw_ptr, pr->nw, pr->nh, fb_pitch/2);
+	}
+
+	pr->primlist->release_lock();
+
+	fb_win_addr = video_swapbuf_fbcon(fb_win_addr);
+
+}
+
+void video_update_fbcon(render_target *our_target)
+{
 	//video_show_fps();
 
 	// get the minimum width/height for the current layout
@@ -274,28 +298,20 @@ static void do_render(render_target *our_target)
 	// lock them, and then render them
 	primlist.acquire_lock();
 
-	// do the drawing here
-	if(fb_bpp==32){
-		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(primlist, fb_draw_ptr, nw, nh, fb_pitch/4);
-	}else if(fb_bpp==16){
-		software_renderer<UINT16, 3,2,3, 11,5,0>::draw_primitives(primlist, fb_draw_ptr, nw, nh, fb_pitch/2);
-	}
 
-	primlist.release_lock();
+	rparam.target = our_target;
+	rparam.primlist = &primlist;
+	rparam.fb_draw_ptr = fb_draw_ptr;
+	rparam.nw = nw;
+	rparam.nh = nh;
 
-	fb_win_addr = video_swapbuf_fbcon(fb_win_addr);
-
-	vt_update_key();
-}
-
-void video_update_fbcon(render_target *our_target)
-{
 #ifdef USE_THREAD_RENDER
-	thread_render_target = our_target;
 	osd_event_set(render_event);
 #else
-	do_render(our_target);
+	do_render(&rparam);
 #endif
+
+	vt_update_key();
 
 }
 
@@ -309,7 +325,7 @@ static void *video_fbcon_render_thread(void *param)
 		if(osdmini_run==0)
 			break;
 
-		do_render(thread_render_target);
+		do_render(&rparam);
 	}
 
 	printk("video_fbcon_render_thread stop!\n");
