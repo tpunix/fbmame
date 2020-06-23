@@ -8,34 +8,72 @@
 
 #include "osdcore.h"
 #include <stdlib.h>
+#include <sys/stat.h>
 
 
 //============================================================
 //  osd_open
 //============================================================
 
+static void mkdir_p(char *dname)
+{
+	char name[256];
+	char *p, *cp;
+
+	strcpy(name, dname);
+
+	cp = name;
+	while(1){
+		p = strchr(cp, '/');
+		if(p==NULL)
+			break;
+
+		*p = 0;
+		mkdir(name, 0777);
+		*p = '/';
+		cp = p+1;
+	};
+}
+
 file_error osd_open(const char *path, UINT32 openflags, osd_file **file, UINT64 *filesize)
 {
 	const char *mode;
 	FILE *fileptr;
+	char pbuf[256];
+	int i=0, p=0;
+
+	while(1){
+		char c = path[p++];
+		if(c==0)
+			break;
+		if(c=='\\')
+			c = '/';
+		pbuf[i++] = c;
+	}
+	pbuf[i] = 0;
 
 	// based on the flags, choose a mode
-	if (openflags & OPEN_FLAG_WRITE)
-	{
+	if (openflags & OPEN_FLAG_WRITE) {
 		if (openflags & OPEN_FLAG_READ)
 			mode = (openflags & OPEN_FLAG_CREATE) ? "w+b" : "r+b";
 		else
 			mode = "wb";
-	}
-	else if (openflags & OPEN_FLAG_READ)
+	}else if (openflags & OPEN_FLAG_READ)
 		mode = "rb";
 	else
 		return FILERR_INVALID_ACCESS;
 
 	// open the file
-	fileptr = fopen(path, mode);
-	if (fileptr == NULL)
+	fileptr = fopen(pbuf, mode);
+	if (fileptr == NULL) {
+		if(openflags & OPEN_FLAG_CREATE_PATHS){
+			mkdir_p(pbuf);
+			fileptr = fopen(pbuf, mode);
+		}
+	}
+	if (fileptr == NULL) {
 		return FILERR_NOT_FOUND;
+	}
 
 	// store the file pointer directly as an osd_file
 	*file = (osd_file *)fileptr;
