@@ -40,7 +40,7 @@ This is not a bug (real machine behaves the same).
 #include "machine/st0016.h"
 #include "cpu/mips/r3000.h"
 
-#define DEBUG_CHAR
+//#define DEBUG_CHAR
 
 #define SPRITE_GLOBAL_X 0
 #define SPRITE_GLOBAL_Y 1
@@ -66,11 +66,12 @@ class srmp5_state : public driver_device
 public:
 	srmp5_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_gfxdecode(*this, "gfxdecode"),
-			m_palette(*this, "palette"),
+#ifdef DEBUG_CHAR
+		m_gfxdecode(*this, "gfxdecode"),
+#endif
+		m_palette(*this, "palette"),
 		m_maincpu(*this,"maincpu"),
-			m_subcpu(*this, "sub")
-
+		m_subcpu(*this, "sub")
 	{ }
 
 	UINT32 m_databank;
@@ -109,7 +110,9 @@ public:
 	DECLARE_READ8_MEMBER(cmd_stat8_r);
 	DECLARE_DRIVER_INIT(srmp5);
 	UINT32 screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+#ifdef DEBUG_CHAR
 	required_device<gfxdecode_device> m_gfxdecode;
+#endif
 	required_device<palette_device> m_palette;
 	optional_device<st0016_cpu_device> m_maincpu;
 	optional_device<cpu_device> m_subcpu;
@@ -125,42 +128,7 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 	UINT16 *sprite_list_end=&m_sprram[0x4000]; //guess
 	UINT8 *pixels=(UINT8 *)m_tileram;
 
-//Table surface seems to be tiles, but display corrupts when switching the scene if always ON.
-//Currently the tiles are OFF.
-#ifdef BG_ENABLE
-	UINT8 tile_width  = (m_vidregs[2] >> 0) & 0xFF;
-	UINT8 tile_height = (m_vidregs[2] >> 8) & 0xFF;
-	if(tile_width && tile_height)
-	{
-		// 16x16 tile
-		UINT16 *map = &sprram[0x2000];
-		for(yw = 0; yw < tile_height; yw++)
-		{
-			for(xw = 0; xw < tile_width; xw++)
-			{
-				UINT16 tile = map[yw * 128 + xw * 2];
-				if(tile >= 0x2000) continue;
-
-				address = tile * SPRITE_DATA_GRANULARITY;
-				for(y = 0; y < 16; y++)
-				{
-					for(x = 0; x < 16; x++)
-					{
-						UINT8 pen = pixels[address];
-						if(pen)
-						{
-							UINT16 pixdata=m_palram[pen];
-							bitmap.pix32(yw * 16 + y, xw * 16 + x) = ((pixdata&0x7c00)>>7) | ((pixdata&0x3e0)<<6) | ((pixdata&0x1f)<<19);
-						}
-						address++;
-					}
-				}
-			}
-		}
-	}
-	else
-#endif
-		bitmap.fill(0, cliprect);
+	bitmap.fill(0, cliprect);
 
 	while((sprite_list[SUBLIST_OFFSET]&SPRITE_LIST_END_MARKER)==0 && sprite_list<sprite_list_end)
 	{
@@ -174,6 +142,9 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 			global_y=(INT16)sprite_list[SPRITE_GLOBAL_Y];
 			while(sublist_length)
 			{
+				UINT16 sppal = sprite_sublist[SPRITE_PALETTE];
+				UINT16 sppal_idx = (sppal&0xff)<<8;
+
 				x=(INT16)sprite_sublist[SPRITE_LOCAL_X]+global_x;
 				y=(INT16)sprite_sublist[SPRITE_LOCAL_Y]+global_y;
 				width =(sprite_sublist[SPRITE_SIZE]>> 4)&0xf;
@@ -186,22 +157,22 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 				y -= (height + 1) * (sizey + 1)-1;
 				for(xw=0;xw<=width;xw++)
 				{
-					xb = (sprite_sublist[SPRITE_PALETTE] & 0x8000) ? (width-xw)*(sizex+1)+x: xw*(sizex+1)+x;
+					xb = (sppal & 0x8000) ? (width-xw)*(sizex+1)+x: xw*(sizex+1)+x;
 					for(yw=0;yw<=height;yw++)
 					{
 						yb = yw*(sizey+1)+y;
 						for(ys=0;ys<=sizey;ys++)
 						{
-							ys2 = (sprite_sublist[SPRITE_PALETTE] & 0x4000) ? ys : (sizey - ys);
+							ys2 = (sppal & 0x4000) ? ys : (sizey - ys);
 							for(xs=0;xs<=sizex;xs++)
 							{
-								UINT8 pen=pixels[address&(0x100000-1)];
-								xs2 = (sprite_sublist[SPRITE_PALETTE] & 0x8000) ? (sizex - xs) : xs;
+								UINT8 pen=pixels[address];
+								xs2 = (sppal & 0x8000) ? (sizex - xs) : xs;
 								if(pen)
 								{
 									if(cliprect.contains(xb+xs2, yb+ys2))
 									{
-										UINT16 pixdata=m_palram[pen+((sprite_sublist[SPRITE_PALETTE]&0xff)<<8)];
+										UINT16 pixdata=m_palram[pen+sppal_idx];
 										bitmap.pix32(yb+ys2, xb+xs2) = ((pixdata&0x7c00)>>7) | ((pixdata&0x3e0)<<6) | ((pixdata&0x1f)<<19);
 									}
 								}
@@ -231,6 +202,7 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 		}
 	}
 #endif
+
 	return 0;
 }
 
