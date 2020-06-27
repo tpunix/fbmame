@@ -144,6 +144,8 @@ static osd_thread *render_thread;
 static void *video_fbcon_render_thread(void *param);
 #endif
 
+void fb_wait_vsync(void);
+
 static int fb_init(void)
 {
 	struct fb_fix_screeninfo finfo;
@@ -163,13 +165,14 @@ static int fb_init(void)
 	fb_bpp  = vinfo.bits_per_pixel;
 	fb_pitch = finfo.line_length;
 
-	vinfo.yres_virtual *= 2;
-	int retv = ioctl(fb_fd, FBIOPUT_VSCREENINFO, &vinfo);
-	if(retv<0){
-		printk("  FBIOPUT_VSCREENINFO failed! %d\n", retv);
+	if(vinfo.yres_virtual < fb_yres*2){
+		vinfo.yres_virtual = fb_yres*2;
+		int retv = ioctl(fb_fd, FBIOPUT_VSCREENINFO, &vinfo);
+		if(retv<0){
+			printk("  FBIOPUT_VSCREENINFO failed! %d\n", retv);
+		}
 	}
 	g_vinfo = vinfo;
-
 
 	fb_base_addr = (UINT8*)mmap(0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_fd, 0);
 
@@ -188,10 +191,19 @@ static int fb_init(void)
 	return 0;
 }
 
+void fb_wait_vsync(void)
+{
+	int crtc = 0;
+	int retv = ioctl(fb_fd, FBIO_WAITFORVSYNC, &crtc);
+	if(retv<0){
+		printk("  FBIO_WAITFORVSYNC failed! %d\n", retv);
+	}
+}
 
 UINT8 *video_swapbuf_fbcon(UINT8 *current)
 {
 	UINT8 *next_buffer;
+	int retv;
 
 	if(current == fb_base_addr){
 		next_buffer = fb_base_addr + fb_yres*fb_pitch;
@@ -201,10 +213,11 @@ UINT8 *video_swapbuf_fbcon(UINT8 *current)
 		g_vinfo.yoffset = fb_yres;
 	}
 
-	int retv = ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
+	retv = ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
 	if(retv<0){
 		printk("  FBIOPAN_DISPLAY failed! %d\n", retv);
 	}
+	usleep(1000);
 
 	return next_buffer;
 }
@@ -230,7 +243,7 @@ void video_show_fps(void)
 		fps = 0;
 		vtm_sec = vtm_new;
 	}
-	printk("video: %12d %06d\n", (int)vtm_new, (int)(vtm_new-vtm_old));
+	//printk("video: %12d %06d\n", (int)vtm_new, (int)(vtm_new-vtm_old));
 	vtm_old = vtm_new;
 }
 
@@ -248,6 +261,8 @@ static struct render_param rparam;
 
 static void do_render(struct render_param *pr)
 {
+	video_show_fps();
+
 	// do the drawing here
 	if(fb_bpp==32){
 		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*pr->primlist, pr->fb_draw_ptr, pr->nw, pr->nh, fb_pitch/4);
@@ -261,9 +276,13 @@ static void do_render(struct render_param *pr)
 
 }
 
-void video_update_fbcon(render_target *our_target)
+void video_update_fbcon(render_target *our_target, bool skip_draw)
 {
 	//video_show_fps();
+	if(skip_draw){
+		vt_update_key();
+		return;
+	}
 
 	// get the minimum width/height for the current layout
 	int minwidth, minheight;

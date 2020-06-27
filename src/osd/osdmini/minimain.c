@@ -279,7 +279,7 @@ void mini_osd_interface::init(running_machine &machine)
 
 void mini_osd_interface::update(bool skip_redraw)
 {
-	video_update_fbcon(our_target);
+	video_update_fbcon(our_target, skip_redraw);
 }
 
 void mini_osd_interface::osd_exit(void)
