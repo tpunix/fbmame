@@ -159,7 +159,7 @@ const options_entry emu_options::s_option_entries[] =
 
 	// misc options
 	{ NULL,                                              NULL,        OPTION_HEADER,     "CORE MISC OPTIONS" },
-	{ OPTION_DRC,                                        "1",         OPTION_BOOLEAN,    "enable DRC cpu core if available" },
+	{ OPTION_DRC,                                        "0",         OPTION_BOOLEAN,    "enable DRC cpu core if available" },
 	{ OPTION_DRC_USE_C,                                  "0",         OPTION_BOOLEAN,    "force DRC use C backend" },
 	{ OPTION_DRC_LOG_UML,                                "0",         OPTION_BOOLEAN,    "write DRC UML disassembly log" },
 	{ OPTION_DRC_LOG_NATIVE,                             "0",         OPTION_BOOLEAN,    "write DRC native disassembly log" },
