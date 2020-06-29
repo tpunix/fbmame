@@ -127,6 +127,7 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 	UINT16 *sprite_list=m_sprram;
 	UINT16 *sprite_list_end=&m_sprram[0x4000]; //guess
 	UINT8 *pixels=(UINT8 *)m_tileram;
+	const pen_t * const pens = m_palette->pens();
 
 	bitmap.fill(0, cliprect);
 
@@ -172,8 +173,7 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 								{
 									if(cliprect.contains(xb+xs2, yb+ys2))
 									{
-										UINT16 pixdata=m_palram[pen+sppal_idx];
-										bitmap.pix32(yb+ys2, xb+xs2) = ((pixdata&0x7c00)>>7) | ((pixdata&0x3e0)<<6) | ((pixdata&0x1f)<<19);
+										bitmap.pix32(yb+ys2, xb+xs2) = pens[pen+sppal_idx];
 									}
 								}
 								++address;
@@ -247,7 +247,7 @@ WRITE32_MEMBER(srmp5_state::spr_w)
 READ32_MEMBER(srmp5_state::data_r)
 {
 	UINT32 data;
-	const UINT8 *usr = memregion("user2")->base();
+	static UINT8 *usr = memregion("user2")->base();
 
 	data=((m_databank>>4)&0xf)*0x100000; //guess
 	data=usr[data+offset*2]+usr[data+offset*2+1]*256;
@@ -526,7 +526,7 @@ static MACHINE_CONFIG_START( srmp5, srmp5_state )
 	MCFG_CPU_IO_MAP(st0016_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", srmp5_state,  irq0_line_hold)
 
-	MCFG_CPU_ADD("sub", R3051, 25000000)
+	MCFG_CPU_ADD("sub", R3051, 15000000) // change from 25M to 15M
 	MCFG_R3000_ENDIANNESS(ENDIANNESS_LITTLE)
 	MCFG_CPU_PROGRAM_MAP(srmp5_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", srmp5_state,  irq4_line_assert)
@@ -535,7 +535,7 @@ static MACHINE_CONFIG_START( srmp5, srmp5_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_SIZE(96*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 42*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(srmp5_state, screen_update_srmp5)
