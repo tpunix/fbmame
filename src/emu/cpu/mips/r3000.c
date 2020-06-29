@@ -742,8 +742,8 @@ inline void r3000_device::handle_cop0()
 
 	switch (RSREG)
 	{
-		case 0x00:  /* MFCz */      if (RTREG) RTVAL = get_cop0_reg(RDREG);       break;
-		case 0x02:  /* CFCz */      if (RTREG) RTVAL = get_cop0_creg(RDREG);      break;
+		case 0x00:  /* MFCz */      RTVAL = get_cop0_reg(RDREG);       break;
+		case 0x02:  /* CFCz */      RTVAL = get_cop0_creg(RDREG);      break;
 		case 0x04:  /* MTCz */      set_cop0_reg(RDREG, RTVAL);                   break;
 		case 0x06:  /* CTCz */      set_cop0_creg(RDREG, RTVAL);                  break;
 		case 0x08:  /* BC */
@@ -821,8 +821,8 @@ inline void r3000_device::handle_cop1()
 
 	switch (RSREG)
 	{
-		case 0x00:  /* MFCz */      if (RTREG) RTVAL = get_cop1_reg(RDREG);       break;
-		case 0x02:  /* CFCz */      if (RTREG) RTVAL = get_cop1_creg(RDREG);      break;
+		case 0x00:  /* MFCz */      RTVAL = get_cop1_reg(RDREG);       break;
+		case 0x02:  /* CFCz */      RTVAL = get_cop1_creg(RDREG);      break;
 		case 0x04:  /* MTCz */      set_cop1_reg(RDREG, RTVAL);                   break;
 		case 0x06:  /* CTCz */      set_cop1_creg(RDREG, RTVAL);                  break;
 		case 0x08:  /* BC */
@@ -1076,20 +1076,20 @@ void r3000_device::execute_run()
 			case 0x00:  /* SPECIAL */
 				switch (m_op & 63)
 				{
-					case 0x00:  /* SLL */       if (RDREG) RDVAL = RTVAL << SHIFT;                        break;
-					case 0x02:  /* SRL */       if (RDREG) RDVAL = RTVAL >> SHIFT;                        break;
-					case 0x03:  /* SRA */       if (RDREG) RDVAL = (INT32)RTVAL >> SHIFT;                 break;
-					case 0x04:  /* SLLV */      if (RDREG) RDVAL = RTVAL << (RSVAL & 31);          break;
-					case 0x06:  /* SRLV */      if (RDREG) RDVAL = RTVAL >> (RSVAL & 31);          break;
-					case 0x07:  /* SRAV */      if (RDREG) RDVAL = (INT32)RTVAL >> (RSVAL & 31);   break;
+					case 0x00:  /* SLL */       RDVAL = RTVAL << SHIFT;                        break;
+					case 0x02:  /* SRL */       RDVAL = RTVAL >> SHIFT;                        break;
+					case 0x03:  /* SRA */       RDVAL = (INT32)RTVAL >> SHIFT;                 break;
+					case 0x04:  /* SLLV */      RDVAL = RTVAL << (RSVAL & 31);          break;
+					case 0x06:  /* SRLV */      RDVAL = RTVAL >> (RSVAL & 31);          break;
+					case 0x07:  /* SRAV */      RDVAL = (INT32)RTVAL >> (RSVAL & 31);   break;
 					case 0x08:  /* JR */        SETPC(RSVAL);                                             break;
 					case 0x09:  /* JALR */      SETPCL(RSVAL, RDREG);                                     break;
 					case 0x0c:  /* SYSCALL */   generate_exception(EXCEPTION_SYSCALL);                           break;
 					case 0x0d:  /* BREAK */     generate_exception(EXCEPTION_BREAK);                             break;
 					case 0x0f:  /* SYNC */      invalid_instruction();                                         break;
-					case 0x10:  /* MFHI */      if (RDREG) RDVAL = m_hi;                                    break;
+					case 0x10:  /* MFHI */      RDVAL = m_hi;                                    break;
 					case 0x11:  /* MTHI */      m_hi = RSVAL;                                               break;
-					case 0x12:  /* MFLO */      if (RDREG) RDVAL = m_lo;                                    break;
+					case 0x12:  /* MFLO */      RDVAL = m_lo;                                    break;
 					case 0x13:  /* MTLO */      m_lo = RSVAL;                                               break;
 					case 0x18:  /* MULT */
 						temp64 = (INT64)(INT32)RSVAL * (INT64)(INT32)RTVAL;
@@ -1123,18 +1123,18 @@ void r3000_device::execute_run()
 						if (ENABLE_OVERFLOWS && RSVAL > ~RTVAL) generate_exception(EXCEPTION_OVERFLOW);
 						else RDVAL = RSVAL + RTVAL;
 						break;
-					case 0x21:  /* ADDU */      if (RDREG) RDVAL = RSVAL + RTVAL;                  break;
+					case 0x21:  /* ADDU */      RDVAL = RSVAL + RTVAL;                  break;
 					case 0x22:  /* SUB */
 						if (ENABLE_OVERFLOWS && RSVAL < RTVAL) generate_exception(EXCEPTION_OVERFLOW);
 						else RDVAL = RSVAL - RTVAL;
 						break;
-					case 0x23:  /* SUBU */      if (RDREG) RDVAL = RSVAL - RTVAL;                  break;
-					case 0x24:  /* AND */       if (RDREG) RDVAL = RSVAL & RTVAL;                  break;
-					case 0x25:  /* OR */        if (RDREG) RDVAL = RSVAL | RTVAL;                  break;
-					case 0x26:  /* XOR */       if (RDREG) RDVAL = RSVAL ^ RTVAL;                  break;
-					case 0x27:  /* NOR */       if (RDREG) RDVAL = ~(RSVAL | RTVAL);               break;
-					case 0x2a:  /* SLT */       if (RDREG) RDVAL = (INT32)RSVAL < (INT32)RTVAL;    break;
-					case 0x2b:  /* SLTU */      if (RDREG) RDVAL = (UINT32)RSVAL < (UINT32)RTVAL;  break;
+					case 0x23:  /* SUBU */      RDVAL = RSVAL - RTVAL;                  break;
+					case 0x24:  /* AND */       RDVAL = RSVAL & RTVAL;                  break;
+					case 0x25:  /* OR */        RDVAL = RSVAL | RTVAL;                  break;
+					case 0x26:  /* XOR */       RDVAL = RSVAL ^ RTVAL;                  break;
+					case 0x27:  /* NOR */       RDVAL = ~(RSVAL | RTVAL);               break;
+					case 0x2a:  /* SLT */       RDVAL = (INT32)RSVAL < (INT32)RTVAL;    break;
+					case 0x2b:  /* SLTU */      RDVAL = (UINT32)RSVAL < (UINT32)RTVAL;  break;
 					case 0x30:  /* TEQ */       invalid_instruction();                                         break;
 					case 0x31:  /* TGEU */      invalid_instruction();                                         break;
 					case 0x32:  /* TLT */       invalid_instruction();                                         break;
@@ -1174,15 +1174,15 @@ void r3000_device::execute_run()
 			case 0x07:  /* BGTZ */      if ((INT32)RSVAL > 0) ADDPC(SIMMVAL);                             break;
 			case 0x08:  /* ADDI */
 				if (ENABLE_OVERFLOWS && RSVAL > ~SIMMVAL) generate_exception(EXCEPTION_OVERFLOW);
-				else if (RTREG) RTVAL = RSVAL + SIMMVAL;
+				else RTVAL = RSVAL + SIMMVAL;
 				break;
-			case 0x09:  /* ADDIU */     if (RTREG) RTVAL = RSVAL + SIMMVAL;                               break;
-			case 0x0a:  /* SLTI */      if (RTREG) RTVAL = (INT32)RSVAL < (INT32)SIMMVAL;                 break;
-			case 0x0b:  /* SLTIU */     if (RTREG) RTVAL = (UINT32)RSVAL < (UINT32)SIMMVAL;               break;
-			case 0x0c:  /* ANDI */      if (RTREG) RTVAL = RSVAL & UIMMVAL;                               break;
-			case 0x0d:  /* ORI */       if (RTREG) RTVAL = RSVAL | UIMMVAL;                               break;
-			case 0x0e:  /* XORI */      if (RTREG) RTVAL = RSVAL ^ UIMMVAL;                               break;
-			case 0x0f:  /* LUI */       if (RTREG) RTVAL = UIMMVAL << 16;                                        break;
+			case 0x09:  /* ADDIU */     RTVAL = RSVAL + SIMMVAL;                               break;
+			case 0x0a:  /* SLTI */      RTVAL = (INT32)RSVAL < (INT32)SIMMVAL;                 break;
+			case 0x0b:  /* SLTIU */     RTVAL = (UINT32)RSVAL < (UINT32)SIMMVAL;               break;
+			case 0x0c:  /* ANDI */      RTVAL = RSVAL & UIMMVAL;                               break;
+			case 0x0d:  /* ORI */       RTVAL = RSVAL | UIMMVAL;                               break;
+			case 0x0e:  /* XORI */      RTVAL = RSVAL ^ UIMMVAL;                               break;
+			case 0x0f:  /* LUI */       RTVAL = UIMMVAL << 16;                                        break;
 			case 0x10:  /* COP0 */      handle_cop0();                                                         break;
 			case 0x11:  /* COP1 */      handle_cop1();                                                         break;
 			case 0x12:  /* COP2 */      handle_cop2();                                                         break;
@@ -1191,12 +1191,12 @@ void r3000_device::execute_run()
 			case 0x15:  /* BNEL */      invalid_instruction();                                                 break;
 			case 0x16:  /* BLEZL */     invalid_instruction();                                                 break;
 			case 0x17:  /* BGTZL */     invalid_instruction();                                                 break;
-			case 0x20:  /* LB */        temp = RBYTE(SIMMVAL+RSVAL); if (RTREG) RTVAL = (INT8)temp; break;
-			case 0x21:  /* LH */        temp = RWORD(SIMMVAL+RSVAL); if (RTREG) RTVAL = (INT16)temp; break;
+			case 0x20:  /* LB */        temp = RBYTE(SIMMVAL+RSVAL); RTVAL = (INT8)temp; break;
+			case 0x21:  /* LH */        temp = RWORD(SIMMVAL+RSVAL); RTVAL = (INT16)temp; break;
 			case 0x22:  /* LWL */       (*this.*m_lwl)();                                                       break;
-			case 0x23:  /* LW */        temp = RLONG(SIMMVAL+RSVAL); if (RTREG) RTVAL = temp;      break;
-			case 0x24:  /* LBU */       temp = RBYTE(SIMMVAL+RSVAL); if (RTREG) RTVAL = (UINT8)temp; break;
-			case 0x25:  /* LHU */       temp = RWORD(SIMMVAL+RSVAL); if (RTREG) RTVAL = (UINT16)temp; break;
+			case 0x23:  /* LW */        temp = RLONG(SIMMVAL+RSVAL); RTVAL = temp;      break;
+			case 0x24:  /* LBU */       temp = RBYTE(SIMMVAL+RSVAL); RTVAL = (UINT8)temp; break;
+			case 0x25:  /* LHU */       temp = RWORD(SIMMVAL+RSVAL); RTVAL = (UINT16)temp; break;
 			case 0x26:  /* LWR */       (*this.*m_lwr)();                                                       break;
 			case 0x28:  /* SB */        WBYTE(SIMMVAL+RSVAL, RTVAL);                               break;
 			case 0x29:  /* SH */        WWORD(SIMMVAL+RSVAL, RTVAL);                               break;
@@ -1222,6 +1222,7 @@ void r3000_device::execute_run()
 			case 0x3f:  /* SDC3 */      invalid_instruction();                                                 break;
 			default:    /* ??? */       invalid_instruction();                                                 break;
 		}
+		m_r[0] = 0;
 		m_icount--;
 
 	} while (m_icount > 0 || m_nextpc != ~0);
