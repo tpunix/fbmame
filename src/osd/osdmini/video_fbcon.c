@@ -33,7 +33,7 @@
 
 #define USE_THREAD_RENDER
 
-#define USE_CURRENT_VT
+//#define USE_CURRENT_VT
 
 static int vtfd, vtkmode, new_vt, current_vt;
 static struct termios new_termios, cur_termios;
@@ -56,6 +56,20 @@ static void vt_init(void)
 	ioctl(fd, VT_OPENQRY, &new_vt);
 #endif
 	close(fd);
+
+
+	// fixup current vt
+	sprintf(vpath, "/dev/tty%d", current_vt);
+	fd = open(vpath, O_RDWR|O_NONBLOCK);
+	if(fd>0){
+		ioctl(fd, KDGKBMODE, &vtkmode);
+		if(vtkmode==K_MEDIUMRAW){
+			ioctl(fd, KDSKBMODE, K_XLATE);
+			ioctl(fd, KDSETMODE, KD_TEXT);
+		}
+		close(fd);
+	}
+
 
 	sprintf(vpath, "/dev/tty%d", new_vt);
 	vtfd = open(vpath, O_RDWR|O_NONBLOCK);
@@ -138,16 +152,33 @@ static UINT8 *fb_win_addr;
 static fb_var_screeninfo g_vinfo;
 
 
+#define FBO_IDLE    0
+#define FBO_WRITE   1
+#define FBO_READY   2
+#define FBO_DISPLAY 3
+
+typedef struct _buffer_obj
+{
+	int state;
+	int age;
+	UINT8 *addr;
+	int y_offset;
+}FBO;
+
+static FBO fbo_list[3];
+static int fbo_ages = 1;
+
+
 #ifdef USE_THREAD_RENDER
 static osd_event *render_event;
 static osd_thread *render_thread;
 static void *video_fbcon_render_thread(void *param);
 #endif
 
-void fb_wait_vsync(void);
 
 static int fb_init(void)
 {
+	int i;
 	struct fb_fix_screeninfo finfo;
 	struct fb_var_screeninfo vinfo;
 
@@ -181,6 +212,13 @@ static int fb_init(void)
 
 	memset(fb_base_addr, 0, finfo.smem_len);
 
+	for(i=0; i<3; i++){
+		fbo_list[i].state = FBO_IDLE;
+		fbo_list[i].age = 0;
+		fbo_list[i].y_offset = i*fb_yres;
+		fbo_list[i].addr = fb_base_addr + i*fb_yres*fb_pitch;
+	}
+
 	fb_win_addr = fb_base_addr;
 
 #ifdef USE_THREAD_RENDER
@@ -191,36 +229,84 @@ static int fb_init(void)
 	return 0;
 }
 
-void fb_wait_vsync(void)
+
+//============================================================
+//  tripple buffer
+//============================================================
+
+static FBO *get_idle_fbo(void)
 {
-	int crtc = 0;
-	int retv = ioctl(fb_fd, FBIO_WAITFORVSYNC, &crtc);
-	if(retv<0){
-		printk("  FBIO_WAITFORVSYNC failed! %d\n", retv);
+	int i;
+
+	for(i=0; i<3; i++){
+		if(fbo_list[i].state==FBO_IDLE){
+			fbo_list[i].state = FBO_WRITE;
+			return &fbo_list[i];
+		}
 	}
+
+	printk("No IDLE FBO!\n");
+	return NULL;
 }
 
-UINT8 *video_swapbuf_fbcon(UINT8 *current)
+static FBO *get_ready_fbo(void)
 {
-	UINT8 *next_buffer;
+	FBO *fbo;
+	int i, r, age;
+
+	r = -1;
+	age = 0x7fffffff;
+
+	for(i=0; i<3; i++){
+		fbo = &fbo_list[i];
+		if(fbo->state==FBO_READY){
+			if(fbo->age<age){
+				r = i;
+				age = fbo->age;
+			}
+
+
+		}
+	}
+
+	if(r==-1){
+		printk("No READY FBO!\n");
+		return NULL;
+	}
+
+	fbo_list[r].state = FBO_DISPLAY;
+	return &fbo_list[r];
+}
+
+
+static void mark_fbo(FBO *fbo, int state, int age)
+{
+	fbo->age = age;
+	fbo->state = state;
+}
+
+
+static void video_show_fbo(FBO *fbo)
+{
 	int retv;
 
-	if(current == fb_base_addr){
-		next_buffer = fb_base_addr + fb_yres*fb_pitch;
-		g_vinfo.yoffset = 0;
+	if(fbo){
+		g_vinfo.yoffset = fbo->y_offset;
+		// PAN_DISPLAY已经有等待VSYNC的动作.
+		retv = ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
+		if(retv<0){
+			printk("  FBIOPAN_DISPLAY failed! %d\n", retv);
+		}
 	}else{
-		next_buffer = fb_base_addr;
-		g_vinfo.yoffset = fb_yres;
+		int crtc = 0;
+		retv = ioctl(fb_fd, FBIO_WAITFORVSYNC, &crtc);
+		if(retv<0){
+			printk("  FBIO_WAITFORVSYNC failed! %d\n", retv);
+		}
 	}
 
-	retv = ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
-	if(retv<0){
-		printk("  FBIOPAN_DISPLAY failed! %d\n", retv);
-	}
-	usleep(1000);
-
-	return next_buffer;
 }
+
 
 //============================================================
 //  osd_update
@@ -252,27 +338,41 @@ struct render_param
 	render_target *target;
 	render_primitive_list *primlist;
 
-	UINT8 *fb_draw_ptr;
 	int nw;
 	int nh;
 };
 
 static struct render_param rparam;
 
+static FBO *display_fbo = NULL;
+
 static void do_render(struct render_param *pr)
 {
+	FBO *draw_fbo;
+	UINT8 *fb_draw_ptr;
+
 	video_show_fps();
 
-	// do the drawing here
-	if(fb_bpp==32){
-		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*pr->primlist, pr->fb_draw_ptr, pr->nw, pr->nh, fb_pitch/4);
-	}else if(fb_bpp==16){
-		software_renderer<UINT16, 3,2,3, 11,5,0>::draw_primitives(*pr->primlist, pr->fb_draw_ptr, pr->nw, pr->nh, fb_pitch/2);
-	}
+	draw_fbo = get_idle_fbo();
+	if(draw_fbo){
+		fb_draw_ptr = draw_fbo->addr + fb_draw_offset;
 
+		// do the drawing here
+		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*pr->primlist, fb_draw_ptr, pr->nw, pr->nh, fb_pitch/4);
+
+		mark_fbo(draw_fbo, FBO_READY, fbo_ages++);
+
+	}
 	pr->primlist->release_lock();
 
-	fb_win_addr = video_swapbuf_fbcon(fb_win_addr);
+
+	if(display_fbo){
+		mark_fbo(display_fbo, FBO_IDLE, 0);
+		display_fbo = NULL;
+	}
+
+	display_fbo = get_ready_fbo();
+	video_show_fbo(display_fbo);
 
 }
 
@@ -306,8 +406,6 @@ void video_update_fbcon(render_target *our_target, bool skip_draw)
 
 	}
 
-	UINT8 *fb_draw_ptr = fb_win_addr+fb_draw_offset;
-
 	// make that the size of our target
 	our_target->set_bounds(nw, nh);
 
@@ -320,7 +418,6 @@ void video_update_fbcon(render_target *our_target, bool skip_draw)
 
 	rparam.target = our_target;
 	rparam.primlist = &primlist;
-	rparam.fb_draw_ptr = fb_draw_ptr;
 	rparam.nw = nw;
 	rparam.nh = nh;
 
@@ -352,6 +449,7 @@ static void *video_fbcon_render_thread(void *param)
 }
 
 #endif
+
 
 /******************************************************************************/
 
