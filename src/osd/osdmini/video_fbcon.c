@@ -313,8 +313,8 @@ static void video_show_fbo(FBO *fbo)
 //============================================================
 
 
-static int old_width=0, old_height=0;
-static int nw=0, nh=0;
+static int game_width=0, game_height=0;
+static int fb_draw_w=0, fb_draw_h=0;
 static int fb_draw_offset = 0;
 
 static INT64 vtm_old=0, vtm_new, vtm_sec=0;
@@ -335,35 +335,43 @@ void video_show_fps(void)
 
 struct render_param
 {
-	render_target *target;
 	render_primitive_list *primlist;
-
-	int nw;
-	int nh;
 };
 
 static struct render_param rparam;
 
 static FBO *display_fbo = NULL;
 
-static void do_render(struct render_param *pr)
+
+#define TEST_THREAD
+
+static void do_render(void)
 {
+	render_primitive_list *primlist;
 	FBO *draw_fbo;
 	UINT8 *fb_draw_ptr;
 
 	video_show_fps();
+
+#ifdef TEST_THREAD
+	render_primitive_list &_primlist = our_target->get_primitives();
+	_primlist.acquire_lock();
+	primlist = &_primlist;
+#else
+	primlist = rparam.primlist;
+#endif
 
 	draw_fbo = get_idle_fbo();
 	if(draw_fbo){
 		fb_draw_ptr = draw_fbo->addr + fb_draw_offset;
 
 		// do the drawing here
-		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*pr->primlist, fb_draw_ptr, pr->nw, pr->nh, fb_pitch/4);
+		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
 
 		mark_fbo(draw_fbo, FBO_READY, fbo_ages++);
 
 	}
-	pr->primlist->release_lock();
+	primlist->release_lock();
 
 
 	if(display_fbo){
@@ -376,7 +384,7 @@ static void do_render(struct render_param *pr)
 
 }
 
-void video_update_fbcon(render_target *our_target, bool skip_draw)
+void video_update_fbcon(bool skip_draw)
 {
 	//video_show_fps();
 	if(skip_draw){
@@ -388,43 +396,38 @@ void video_update_fbcon(render_target *our_target, bool skip_draw)
 	int minwidth, minheight;
 	our_target->compute_minimum_size(minwidth, minheight);
 
-	if(old_width!=minwidth || old_height!=minheight){
+	if(game_width!=minwidth || game_height!=minheight){
 		printk("Change res to %dx%d\n", minwidth, minheight);
-		old_width = minwidth;
-		old_height = minheight;
+		game_width = minwidth;
+		game_height = minheight;
 
-		nw = (minwidth * fb_yres) / minheight;
-		if(nw<fb_xres){
-			nh = fb_yres;
-			fb_draw_offset = ((fb_xres-nw)/2)*(fb_bpp/8);
+		fb_draw_w = (minwidth * fb_yres) / minheight;
+		if(fb_draw_w<fb_xres){
+			fb_draw_h = fb_yres;
+			fb_draw_offset = ((fb_xres-fb_draw_w)/2)*(fb_bpp/8);
 		}else{
-			nh = (minheight * fb_xres) / minwidth;
-			nw = fb_xres;
-			fb_draw_offset = ((fb_yres-nh)/2)*fb_pitch;
+			fb_draw_h = (minheight * fb_xres) / minwidth;
+			fb_draw_w = fb_xres;
+			fb_draw_offset = ((fb_yres-fb_draw_h)/2)*fb_pitch;
 		}
-		printk("Scale: %dx%d\n", nw, nh);
+		printk("Scale: %dx%d\n", fb_draw_w, fb_draw_h);
 
 	}
+	our_target->set_bounds(fb_draw_w, fb_draw_h);
 
-	// make that the size of our target
-	our_target->set_bounds(nw, nh);
 
+#ifndef TEST_THREAD
 	// get the list of primitives for the target at the current size
-	render_primitive_list &primlist = our_target->get_primitives();
+	render_primitive_list &_primlist = our_target->get_primitives();
+	_primlist.acquire_lock();
+	rparam.primlist = &_primlist;
+#endif
 
-	// lock them, and then render them
-	primlist.acquire_lock();
-
-
-	rparam.target = our_target;
-	rparam.primlist = &primlist;
-	rparam.nw = nw;
-	rparam.nh = nh;
 
 #ifdef USE_THREAD_RENDER
 	osd_event_set(render_event);
 #else
-	do_render(&rparam);
+	do_render();
 #endif
 
 	vt_update_key();
@@ -441,7 +444,7 @@ static void *video_fbcon_render_thread(void *param)
 		if(osdmini_run==0)
 			break;
 
-		do_render(&rparam);
+		do_render();
 	}
 
 	printk("video_fbcon_render_thread stop!\n");

@@ -171,7 +171,7 @@ static kt_table key_trans_table[] =
 //============================================================
 
 // a single rendering target
-static render_target *our_target;
+render_target *our_target;
 
 // a single input device
 static input_device *keyboard_device;
@@ -279,7 +279,7 @@ void mini_osd_interface::init(running_machine &machine)
 
 void mini_osd_interface::update(bool skip_redraw)
 {
-	video_update_fbcon(our_target, skip_redraw);
+	video_update_fbcon(skip_redraw);
 }
 
 void mini_osd_interface::osd_exit(void)

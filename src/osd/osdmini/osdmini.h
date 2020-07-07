@@ -51,6 +51,7 @@ extern const options_entry mame_win_options[];
 // defined in winwork.c
 extern int osd_num_processors;
 
+extern render_target *our_target;
 extern int osdmini_run;
 
 
@@ -61,7 +62,7 @@ extern int osdmini_run;
 
 
 void video_init_fbcon(void);
-void video_update_fbcon(render_target *our_target, bool skip_draw);
+void video_update_fbcon(bool skip_draw);
 void video_exit_fbcon(void);
 
 
