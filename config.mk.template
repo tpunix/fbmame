@@ -1,0 +1,63 @@
+
+
+###############################################################################
+# user edit area
+
+TARGET = mame
+SUBTARGET = tiny
+#OSD = sdl
+OSD = osdmini
+
+#CROSS_BUILD = 1
+#ARCH = arm64
+
+
+SYMBOLS = 1
+#SYMLEVEL = 2
+#DEBUG = 1
+OPTIMIZE = 3
+#PROFILE = 1
+#PROFILER = 1
+
+
+###############################################################################
+# fix area
+
+ifeq ($(CROSS_BUILD),1)
+
+ifeq ($(ARCH), arm64)
+PTR64 = 1
+CROSS = /f/h3/buildroot-2020.02.2/output/host/bin/aarch64-linux-gnu-
+SDL_INSTALL_ROOT = /f/h3/buildroot-2020.02.2/output/host/aarch64-buildroot-linux-gnu/sysroot/usr
+else
+PTR64 = 0
+CROSS = /f/h3/buildroot-2020.02.2/output/host/bin/arm-linux-gnueabihf-
+SDL_INSTALL_ROOT = /f/h3/buildroot-2020.02.2/output/host/arm-buildroot-linux-gnueabihf/sysroot/usr
+endif
+
+PKG_CONFIG = /f/h3/buildroot-2020.02.2/output/host/bin/pkg-config
+
+else
+
+PKG_CONFIG = pkg-config
+
+endif
+
+
+NOWERROR = 1
+NOASM = 1
+
+
+FORCE_DRC_C_BACKEND = 1
+DONT_USE_NETWORK = 1
+
+
+SDL_LIBVER = sdl
+NO_OPENGL = 1
+NO_X11 = 1
+NO_USE_QTDEBUG = 1
+
+
+# end
+###############################################################################
+

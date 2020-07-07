@@ -433,6 +433,10 @@ EMULATOR = $(FULLNAME)$(EXE)
 # source and object locations
 #-------------------------------------------------
 
+ifdef ARCH
+ARCH_PREFIX = $(ARCH)_
+endif
+
 # all sources are under the src/ directory
 SRC = src
 
@@ -440,7 +444,7 @@ SRC = src
 3RDPARTY = 3rdparty
 
 # build the targets in different object dirs, so they can co-exist
-OBJ = obj/$(PREFIX)$(OSD)$(SUFFIX)$(SUFFIX64)$(SUFFIXDEBUG)$(SUFFIXPROFILE)
+OBJ = obj/$(ARCH_PREFIX)$(PREFIX)$(OSD)$(SUFFIX)$(SUFFIX64)$(SUFFIXDEBUG)$(SUFFIXPROFILE)
 
 ifeq ($(CROSS_BUILD),1)
 ifndef NATIVE_OBJ
