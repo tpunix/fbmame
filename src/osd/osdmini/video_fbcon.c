@@ -343,8 +343,6 @@ static struct render_param rparam;
 static FBO *display_fbo = NULL;
 
 
-#define TEST_THREAD
-
 static void do_render(void)
 {
 	render_primitive_list *primlist;
@@ -353,13 +351,7 @@ static void do_render(void)
 
 	video_show_fps();
 
-#ifdef TEST_THREAD
-	render_primitive_list &_primlist = our_target->get_primitives();
-	_primlist.acquire_lock();
-	primlist = &_primlist;
-#else
 	primlist = rparam.primlist;
-#endif
 
 	draw_fbo = get_idle_fbo();
 	if(draw_fbo){
@@ -416,12 +408,10 @@ void video_update_fbcon(bool skip_draw)
 	our_target->set_bounds(fb_draw_w, fb_draw_h);
 
 
-#ifndef TEST_THREAD
 	// get the list of primitives for the target at the current size
 	render_primitive_list &_primlist = our_target->get_primitives();
 	_primlist.acquire_lock();
 	rparam.primlist = &_primlist;
-#endif
 
 
 #ifdef USE_THREAD_RENDER
