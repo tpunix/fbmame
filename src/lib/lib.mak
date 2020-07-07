@@ -28,11 +28,13 @@ OBJDIRS += \
 	$(LIBOBJ)/portmidi/pm_mac \
 	$(LIBOBJ)/portmidi/pm_win \
 	$(LIBOBJ)/portmidi/porttime \
-	$(LIBOBJ)/lua \
-	$(LIBOBJ)/lua/lsqlite3 \
 	$(LIBOBJ)/mongoose \
 	$(LIBOBJ)/jsoncpp \
-	$(LIBOBJ)/sqlite3 \
+
+
+#	$(LIBOBJ)/lua \
+#	$(LIBOBJ)/lua/lsqlite3 \
+#	$(LIBOBJ)/sqlite3 \
 
 #-------------------------------------------------
 # utility library objects

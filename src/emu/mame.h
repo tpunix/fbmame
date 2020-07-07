@@ -20,7 +20,7 @@
 
 #include <time.h>
 
-#include "webengine.h"
+//#include "webengine.h"
 
 class osd_interface;
 
@@ -91,8 +91,8 @@ public:
 
 	osd_interface &osd() const;
 	emu_options &options() const { return m_options; }
-	web_engine *web() { return &m_web; }
-	lua_engine *lua() { return &m_lua; }
+	//web_engine *web() { return &m_web; }
+	//lua_engine *lua() { return &m_lua; }
 
 	running_machine *machine() { return m_machine; }
 
@@ -107,8 +107,8 @@ private:
 	osd_interface &         m_osd;                  // reference to OSD system
 	emu_options &           m_options;              // reference to options
 
-	web_engine              m_web;
-	lua_engine              m_lua;
+	//web_engine              m_web;
+	//lua_engine              m_lua;
 
 	const game_driver *     m_new_driver_pending;   // pointer to the next pending driver
 

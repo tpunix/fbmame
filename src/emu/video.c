@@ -223,7 +223,7 @@ void video_manager::frame_update(bool debug)
 	machine().osd().update(!debug && skipped_it);
 	g_profiler.stop();
 
-	machine().manager().lua()->periodic_check();
+	//machine().manager().lua()->periodic_check();
 
 	// perform tasks for this frame
 	if (!debug)
@@ -656,7 +656,7 @@ bool video_manager::finish_screen_updates()
 			anything_changed = true;
 
 	// draw HUD from LUA callback (if any)
-	anything_changed |= machine().manager().lua()->frame_hook();
+	//anything_changed |= machine().manager().lua()->frame_hook();
 
 	// update our movie recording and burn-in state
 	if (!machine().paused())

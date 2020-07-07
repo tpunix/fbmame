@@ -200,6 +200,7 @@ const char *running_machine::describe_context()
 
 TIMER_CALLBACK_MEMBER(running_machine::autoboot_callback)
 {
+#if 0
 	if (strlen(options().autoboot_script())!=0) {
 		manager().lua()->load_script(options().autoboot_script());
 	}
@@ -209,6 +210,7 @@ TIMER_CALLBACK_MEMBER(running_machine::autoboot_callback)
 		astring val = astring("emu.keypost('",cmd,"')");
 		manager().lua()->load_string(val);
 	}
+#endif
 }
 
 //-------------------------------------------------
@@ -390,7 +392,7 @@ int running_machine::run(bool firstrun)
 			js_set_main_loop(this);
 			#endif
 
-			manager().web()->serve();
+			//manager().web()->serve();
 
 			// execute CPUs if not paused
 			if (!m_paused)

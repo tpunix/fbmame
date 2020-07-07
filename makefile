@@ -643,9 +643,10 @@ INCPATH += \
 	-I$(SRC)/lib/util \
 	-I$(SRC)/lib \
 	-I$(3RDPARTY) \
-	-I$(3RDPARTY)/lua/src \
 	-I$(SRC)/osd \
 	-I$(SRC)/osd/$(OSD) \
+
+#	-I$(3RDPARTY)/lua/src \
 
 
 
@@ -796,17 +797,17 @@ SOFTFLOAT = $(OBJ)/libsoftfloat.a
 FORMATS_LIB = $(OBJ)/libformats.a
 
 # add LUA library
-LUA_LIB = $(OBJ)/liblua.a
+#LUA_LIB = $(OBJ)/liblua.a
 
 # add web library
-WEB_LIB = $(OBJ)/libweb.a
+#WEB_LIB = $(OBJ)/libweb.a
 
 # add SQLite3 library
 ifeq ($(BUILD_SQLITE3),1)
-SQLITE3_LIB = $(OBJ)/libsqlite3.a
+#SQLITE3_LIB = $(OBJ)/libsqlite3.a
 else
-LIBS += -lsqlite3
-SQLITE3_LIB =
+#LIBS += -lsqlite3
+#SQLITE3_LIB =
 endif
 
 # add PortMidi MIDI library
