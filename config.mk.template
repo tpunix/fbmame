@@ -25,6 +25,8 @@ OPTIMIZE = 3
 
 ifeq ($(CROSS_BUILD),1)
 
+TARGETOS = linux
+
 ifeq ($(ARCH), arm64)
 PTR64 = 1
 CROSS = /f/h3/buildroot-2020.02.2/output/host/bin/aarch64-linux-gnu-
