@@ -317,6 +317,7 @@ void render_primitive::reset()
 render_primitive_list::render_primitive_list()
 	: m_lock(osd_lock_alloc())
 {
+	m_in_use = 0;
 }
 
 
@@ -1352,6 +1353,11 @@ render_primitive_list &render_target::get_primitives()
 
 	// switch to the next primitive list
 	render_primitive_list &list = m_primlist[m_listindex];
+	if(list.in_use()){
+		printf("\n get_primitives %p in_use!\n", &list);
+	}
+	list.use();
+
 	m_listindex = (m_listindex + 1) % ARRAY_LENGTH(m_primlist);
 	list.acquire_lock();
 

@@ -399,6 +399,10 @@ public:
 	void add_reference(void *refptr);
 	bool has_reference(void *refptr) const;
 
+	int in_use() { return m_in_use; }
+	void use()  { m_in_use = 1; }
+	void free_use() { m_in_use = 0; }
+
 private:
 	// helpers for our friends to manipulate the list
 	render_primitive *alloc(render_primitive::primitive_type type);
@@ -423,6 +427,7 @@ private:
 	fixed_allocator<reference> m_reference_allocator;       // allocator for references
 
 	osd_lock *          m_lock;                             // lock to protect list accesses
+	int m_in_use;
 };
 
 
