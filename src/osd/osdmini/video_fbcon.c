@@ -142,39 +142,150 @@ static void sigint_handle(int signum)
 	exit(1);
 }
 
+
+
+//============================================================
+//  tripple buffer
+//============================================================
+
+#define QOBJ_IDLE    0
+#define QOBJ_WRITE   1
+#define QOBJ_READY   2
+#define QOBJ_USING   3
+
+typedef struct _queue_obj
+{
+	int state;
+	int age;
+	void *data1;
+	int data2;
+}QOBJ;
+
+typedef struct {
+	int size;
+	QOBJ *list;
+}SIMPLE_QUEUE;
+
+static int qobj_ages = 1;
+
+SIMPLE_QUEUE *simple_queue_create(int size)
+{
+	SIMPLE_QUEUE *sq;
+
+	sq = (SIMPLE_QUEUE*)malloc(sizeof(SIMPLE_QUEUE));
+
+	sq->size = size;
+	sq->list = (QOBJ*)malloc(size*sizeof(QOBJ));
+
+	memset(sq->list, 0, size*sizeof(QOBJ));
+	return sq;
+}
+
+void simple_queue_free(SIMPLE_QUEUE *sq)
+{
+	free(sq->list);
+	free(sq);
+}
+
+
+static QOBJ *get_idle_qobj(SIMPLE_QUEUE *sq)
+{
+	int i;
+
+	for(i=0; i<sq->size; i++){
+		if(sq->list[i].state==QOBJ_IDLE){
+			sq->list[i].state = QOBJ_WRITE;
+			return &(sq->list[i]);
+		}
+	}
+
+	//printk("No IDLE QOBJ!\n");
+	return NULL;
+}
+
+static QOBJ *get_ready_qobj(SIMPLE_QUEUE *sq)
+{
+	int i, r, age;
+
+	r = -1;
+	age = 0x7fffffff;
+
+	for(i=0; i<sq->size; i++){
+		if(sq->list[i].state==QOBJ_READY){
+			if(sq->list[i].age<age){
+				r = i;
+				age = sq->list[i].age;
+			}
+		}
+	}
+
+	if(r==-1){
+		//printk("No READY QOBJ!\n");
+		return NULL;
+	}
+
+	sq->list[r].state = QOBJ_USING;
+	return &sq->list[r];
+}
+
+
+static void qobj_set_ready(QOBJ *qobj)
+{
+	qobj->age = qobj_ages++;
+	qobj->state = QOBJ_READY;
+}
+
+static void qobj_set_idle(QOBJ *qobj)
+{
+	qobj->age = 0;
+	qobj->state = QOBJ_IDLE;
+}
+
+static void qobj_init(QOBJ *qobj, void *data1, int data2)
+{
+	qobj->state = QOBJ_IDLE;
+	qobj->age = 0;
+	qobj->data1 = data1;
+	qobj->data2 = data2;
+}
+
+
 /******************************************************************************/
 
 
 static int fb_fd, fb_xres, fb_yres, fb_bpp, fb_pitch;
 static UINT8 *fb_base_addr;
-static UINT8 *fb_win_addr;
 
 static fb_var_screeninfo g_vinfo;
+static int vblank_wait;
 
 
-#define FBO_IDLE    0
-#define FBO_WRITE   1
-#define FBO_READY   2
-#define FBO_DISPLAY 3
-
-typedef struct _buffer_obj
-{
-	int state;
-	int age;
-	UINT8 *addr;
-	int y_offset;
-}FBO;
-
-static FBO fbo_list[3];
-static int fbo_ages = 1;
-
+static SIMPLE_QUEUE *fbo_queue;
+static SIMPLE_QUEUE *render_queue;
 
 #ifdef USE_THREAD_RENDER
 static osd_event *render_event;
 static osd_thread *render_thread;
+static osd_thread *vblank_thread;
 static void *video_fbcon_render_thread(void *param);
+static void *video_fbcon_vblank_thread(void *param);
 #endif
 
+
+static void check_vblank(void)
+{
+	INT64 tm_start, tm_end;
+
+	ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
+	tm_start = osd_ticks();
+	ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
+	tm_end = osd_ticks();
+	tm_end -= tm_start;
+
+	vblank_wait = (tm_end<15000)? 1: 0;
+
+	printk("check_vblank_time: %d\n", (int)tm_end);
+}
 
 static int fb_init(void)
 {
@@ -196,8 +307,8 @@ static int fb_init(void)
 	fb_bpp  = vinfo.bits_per_pixel;
 	fb_pitch = finfo.line_length;
 
-	if(vinfo.yres_virtual < fb_yres*2){
-		vinfo.yres_virtual = fb_yres*2;
+	if(vinfo.yres_virtual < fb_yres*3){
+		vinfo.yres_virtual = fb_yres*3;
 		int retv = ioctl(fb_fd, FBIOPUT_VSCREENINFO, &vinfo);
 		if(retv<0){
 			printk("  FBIOPUT_VSCREENINFO failed! %d\n", retv);
@@ -212,110 +323,29 @@ static int fb_init(void)
 
 	memset(fb_base_addr, 0, finfo.smem_len);
 
+	fbo_queue = simple_queue_create(3);
 	for(i=0; i<3; i++){
-		fbo_list[i].state = FBO_IDLE;
-		fbo_list[i].age = 0;
-		fbo_list[i].y_offset = i*fb_yres;
-		fbo_list[i].addr = fb_base_addr + i*fb_yres*fb_pitch;
+		qobj_init(&fbo_queue->list[i], (void*)(fb_base_addr + i*fb_yres*fb_pitch), i*fb_yres);
 	}
 
-	fb_win_addr = fb_base_addr;
+	check_vblank();
 
+
+	render_queue = simple_queue_create(4);
 #ifdef USE_THREAD_RENDER
 	render_event = osd_event_alloc(0, 0);
 	render_thread = osd_thread_create(video_fbcon_render_thread, NULL);
+	vblank_thread = osd_thread_create(video_fbcon_vblank_thread, NULL);
 #endif
 
 	return 0;
 }
 
 
-//============================================================
-//  tripple buffer
-//============================================================
-
-static FBO *get_idle_fbo(void)
-{
-	int i;
-
-	for(i=0; i<3; i++){
-		if(fbo_list[i].state==FBO_IDLE){
-			fbo_list[i].state = FBO_WRITE;
-			return &fbo_list[i];
-		}
-	}
-
-	printk("No IDLE FBO!\n");
-	return NULL;
-}
-
-static FBO *get_ready_fbo(void)
-{
-	FBO *fbo;
-	int i, r, age;
-
-	r = -1;
-	age = 0x7fffffff;
-
-	for(i=0; i<3; i++){
-		fbo = &fbo_list[i];
-		if(fbo->state==FBO_READY){
-			if(fbo->age<age){
-				r = i;
-				age = fbo->age;
-			}
-
-
-		}
-	}
-
-	if(r==-1){
-		printk("No READY FBO!\n");
-		return NULL;
-	}
-
-	fbo_list[r].state = FBO_DISPLAY;
-	return &fbo_list[r];
-}
-
-
-static void mark_fbo(FBO *fbo, int state, int age)
-{
-	fbo->age = age;
-	fbo->state = state;
-}
-
-
-static void video_show_fbo(FBO *fbo)
-{
-	int retv;
-
-	if(fbo){
-		g_vinfo.yoffset = fbo->y_offset;
-		// PAN_DISPLAY已经有等待VSYNC的动作.
-		retv = ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
-		if(retv<0){
-			printk("  FBIOPAN_DISPLAY failed! %d\n", retv);
-		}
-	}else{
-		int crtc = 0;
-		retv = ioctl(fb_fd, FBIO_WAITFORVSYNC, &crtc);
-		if(retv<0){
-			printk("  FBIO_WAITFORVSYNC failed! %d\n", retv);
-		}
-	}
-
-}
-
 
 //============================================================
-//  osd_update
+//  show fps
 //============================================================
-
-
-static int game_width=0, game_height=0;
-static int fb_draw_w=0, fb_draw_h=0;
-static int fb_draw_offset = 0;
 
 static INT64 vtm_old=0, vtm_new, vtm_sec=0;
 static int fps=0;
@@ -333,53 +363,68 @@ void video_show_fps(void)
 	vtm_old = vtm_new;
 }
 
-struct render_param
+
+//============================================================
+//  osd_update
+//============================================================
+
+
+static int game_width=0, game_height=0;
+static int fb_draw_w=0, fb_draw_h=0;
+static int fb_draw_offset = 0;
+
+static void video_swap_buffer(QOBJ *display)
 {
-	render_primitive_list *primlist;
-};
+	int retv;
 
-static struct render_param rparam;
+	if(display){
+		g_vinfo.yoffset = display->data2;
+	}
 
-static FBO *display_fbo = NULL;
+	// PAN_DISPLAY已经有等待VSYNC的动作.
+	retv = ioctl(fb_fd, FBIOPAN_DISPLAY, &g_vinfo);
+	if(retv<0){
+		printk("  FBIOPAN_DISPLAY failed! %d\n", retv);
+	}
+
+}
 
 
 static void do_render(void)
 {
-	render_primitive_list *primlist;
-	FBO *draw_fbo;
+	QOBJ *draw_obj;
+	QOBJ *render_obj;
 	UINT8 *fb_draw_ptr;
+	render_primitive_list *primlist;
 
 	video_show_fps();
 
-	primlist = rparam.primlist;
+	render_obj = get_ready_qobj(render_queue);
+	primlist = (render_primitive_list*)render_obj->data1;
+	qobj_set_idle(render_obj);
 
-	draw_fbo = get_idle_fbo();
-	if(draw_fbo){
-		fb_draw_ptr = draw_fbo->addr + fb_draw_offset;
+	//while(1){
+		draw_obj = get_idle_qobj(fbo_queue);
+	//	if(draw_obj)
+	//		break;
+	//	osd_sleep(2000);
+	//}
+	//printk("\ndraw: %p\n", draw_obj);
 
+	if(draw_obj){
+		fb_draw_ptr = (UINT8*)(draw_obj->data1) + fb_draw_offset;
 		// do the drawing here
 		software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
-
-		mark_fbo(draw_fbo, FBO_READY, fbo_ages++);
-
+		qobj_set_ready(draw_obj);
 	}
+
 	primlist->release_lock();
 	primlist->free_use();
-
-
-	if(display_fbo){
-		mark_fbo(display_fbo, FBO_IDLE, 0);
-		display_fbo = NULL;
-	}
-
-	display_fbo = get_ready_fbo();
-	video_show_fbo(display_fbo);
 
 }
 
 void video_update_fbcon(bool skip_draw)
 {
-	//video_show_fps();
 	if(skip_draw){
 		vt_update_key();
 		return;
@@ -410,10 +455,12 @@ void video_update_fbcon(bool skip_draw)
 
 
 	// get the list of primitives for the target at the current size
-	render_primitive_list &_primlist = our_target->get_primitives();
-	_primlist.acquire_lock();
-	rparam.primlist = &_primlist;
+	render_primitive_list &primlist = our_target->get_primitives();
+	primlist.acquire_lock();
 
+	QOBJ *render_obj = get_idle_qobj(render_queue);
+	render_obj->data1 = &primlist;
+	qobj_set_ready(render_obj);
 
 #ifdef USE_THREAD_RENDER
 	osd_event_set(render_event);
@@ -441,6 +488,35 @@ static void *video_fbcon_render_thread(void *param)
 	printk("video_fbcon_render_thread stop!\n");
 	return NULL;
 }
+
+static void *video_fbcon_vblank_thread(void *param)
+{
+	QOBJ *new_obj;
+	QOBJ *release_obj = NULL;
+
+	while(1){
+		new_obj = get_ready_qobj(fbo_queue);
+		if(new_obj){
+			video_swap_buffer(new_obj);
+			//printk("display: %p\n", new_obj);
+			if(release_obj){
+				//printf("release: %p\n", release_obj);
+				qobj_set_idle(release_obj);
+			}
+			release_obj = new_obj;
+
+			if(vblank_wait){
+				osd_sleep(16000);
+			}
+		}else{
+			osd_sleep(3000);
+		}
+	}
+
+	printk("video_fbcon_vblank_thread stop!\n");
+	return NULL;
+}
+
 
 #endif
 

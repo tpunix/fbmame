@@ -1353,8 +1353,9 @@ render_primitive_list &render_target::get_primitives()
 
 	// switch to the next primitive list
 	render_primitive_list &list = m_primlist[m_listindex];
-	if(list.in_use()){
-		printf("\n get_primitives %p in_use!\n", &list);
+	while(list.in_use()){
+		//printf("\n get_primitives %p in_use!\n", &list);
+		osd_sleep(2000);
 	}
 	list.use();
 
