@@ -19,129 +19,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <termios.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/fb.h>
-#include <signal.h>
-#include <linux/vt.h>
-#include <linux/kd.h>
 
 
 /******************************************************************************/
 
 #define USE_THREAD_RENDER
-
-//#define USE_CURRENT_VT
-
-static int vtfd, vtkmode, new_vt, current_vt;
-static struct termios new_termios, cur_termios;
-extern UINT8 vt_keystate[128];
-
-static void vt_init(void)
-{
-	int fd;
-	struct vt_stat vtstate;
-	char vpath[16];
-
-	memset(vt_keystate, 0, sizeof(vt_keystate));
-
-	fd = open("/dev/tty0", O_RDWR);
-	ioctl(fd, VT_GETSTATE, &vtstate);
-	current_vt = vtstate.v_active;
-#ifdef USE_CURRENT_VT
-	new_vt = current_vt;
-#else
-	ioctl(fd, VT_OPENQRY, &new_vt);
-#endif
-	close(fd);
-
-
-	// fixup current vt
-	sprintf(vpath, "/dev/tty%d", current_vt);
-	fd = open(vpath, O_RDWR|O_NONBLOCK);
-	if(fd>0){
-		ioctl(fd, KDGKBMODE, &vtkmode);
-		if(vtkmode==K_MEDIUMRAW){
-			ioctl(fd, KDSKBMODE, K_XLATE);
-			ioctl(fd, KDSETMODE, KD_TEXT);
-		}
-		close(fd);
-	}
-
-
-	sprintf(vpath, "/dev/tty%d", new_vt);
-	vtfd = open(vpath, O_RDWR|O_NONBLOCK);
-	if(vtfd>0){
-#ifdef USE_CURRENT_VT
-		printk("Use current VT %d\n", new_vt);
-#else
-		printk("Switch VT from %d to %d\n", current_vt, new_vt);
-		ioctl(vtfd, VT_ACTIVATE, new_vt);
-		ioctl(vtfd, VT_WAITACTIVE, new_vt);
-#endif
-
-		tcgetattr(vtfd, &cur_termios);
-		new_termios = cur_termios;
-		cfmakeraw(&new_termios);
-		tcsetattr(vtfd, TCSAFLUSH, &new_termios);
-
-		ioctl(vtfd, KDSETMODE, KD_GRAPHICS);
-
-		ioctl(vtfd, KDGKBMODE, &vtkmode);
-		ioctl(vtfd, KDSKBMODE, K_MEDIUMRAW);
-	}else{
-		printk("Open %s failed!\n", vpath);
-	}
-
-}
-
-static void vt_exit(void)
-{
-	if(vtfd>0){
-		ioctl(vtfd, KDSKBMODE, vtkmode);
-
-		ioctl(vtfd, KDSETMODE, KD_TEXT);
-
-		tcsetattr(vtfd, TCSAFLUSH, &cur_termios);
-#ifndef USE_CURRENT_VT
-		ioctl(vtfd, VT_ACTIVATE, current_vt);
-		ioctl(vtfd, VT_WAITACTIVE, current_vt);
-#endif
-
-		close(vtfd);
-		vtfd = -1;
-	}
-}
-
-static int vt_update_key(void)
-{
-	int retv;
-	UINT8 key;
-
-	while(1){
-		retv = read(vtfd, &key, 1);
-		if(retv<=0)
-			break;
-
-		if(key&0x80){
-			vt_keystate[key&0x7f] = 0;
-		}else{
-			vt_keystate[key&0x7f] = key;
-		}
-	}
-
-	return key;
-}
-
-static void sigint_handle(int signum)
-{
-	printk("\nsigint_handle!\n");
-	vt_exit();
-	exit(1);
-}
-
 
 
 //============================================================
@@ -403,14 +289,7 @@ static void do_render(void)
 	primlist = (render_primitive_list*)render_obj->data1;
 	qobj_set_idle(render_obj);
 
-	//while(1){
-		draw_obj = get_idle_qobj(fbo_queue);
-	//	if(draw_obj)
-	//		break;
-	//	osd_sleep(2000);
-	//}
-	//printk("\ndraw: %p\n", draw_obj);
-
+	draw_obj = get_idle_qobj(fbo_queue);
 	if(draw_obj){
 		fb_draw_ptr = (UINT8*)(draw_obj->data1) + fb_draw_offset;
 		// do the drawing here
@@ -426,7 +305,6 @@ static void do_render(void)
 void video_update_fbcon(bool skip_draw)
 {
 	if(skip_draw){
-		vt_update_key();
 		return;
 	}
 
@@ -468,8 +346,6 @@ void video_update_fbcon(bool skip_draw)
 	do_render();
 #endif
 
-	vt_update_key();
-
 }
 
 #ifdef USE_THREAD_RENDER
@@ -477,7 +353,7 @@ void video_update_fbcon(bool skip_draw)
 static void *video_fbcon_render_thread(void *param)
 {
 
-	while(1){
+	while(osdmini_run){
 		osd_event_wait(render_event, OSD_EVENT_WAIT_INFINITE);
 		if(osdmini_run==0)
 			break;
@@ -494,13 +370,11 @@ static void *video_fbcon_vblank_thread(void *param)
 	QOBJ *new_obj;
 	QOBJ *release_obj = NULL;
 
-	while(1){
+	while(osdmini_run){
 		new_obj = get_ready_qobj(fbo_queue);
 		if(new_obj){
 			video_swap_buffer(new_obj);
-			//printk("display: %p\n", new_obj);
 			if(release_obj){
-				//printf("release: %p\n", release_obj);
 				qobj_set_idle(release_obj);
 			}
 			release_obj = new_obj;
@@ -526,17 +400,13 @@ static void *video_fbcon_vblank_thread(void *param)
 
 void video_init_fbcon(void)
 {
-	signal(SIGINT, sigint_handle);
-
-	vt_init();
-
 	fb_init();
 }
+
 
 void video_exit_fbcon(void)
 {
 	printk("video_exit_fbcon!\n");
-	vt_exit();
 }
 
 

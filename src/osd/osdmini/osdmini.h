@@ -52,6 +52,9 @@ extern const options_entry mame_win_options[];
 extern int osd_num_processors;
 
 extern render_target *our_target;
+
+extern input_device *keyboard_device;
+
 extern int osdmini_run;
 
 
@@ -61,11 +64,12 @@ extern int osdmini_run;
 //============================================================
 
 
+void input_init_vt(void);
+void input_update_vt(void);
+void input_exit_vt(void);
+
 void video_init_fbcon(void);
 void video_update_fbcon(bool skip_draw);
 void video_exit_fbcon(void);
 
 
-// use this to ping the watchdog
-void winmain_watchdog_ping(void);
-void winmain_dump_stack();

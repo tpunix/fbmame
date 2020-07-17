@@ -74,6 +74,7 @@ OSDCOREOBJS = \
 
 OSDOBJS = \
 	$(MINIOBJ)/minimain.o \
+	$(MINIOBJ)/input_vt.o \
 	$(MINIOBJ)/video_fbcon.o \
 	$(OSDOBJ)/modules/sync/work_mini.o \
 	$(OSDOBJ)/modules/lib/osdobj_common.o  \
@@ -96,10 +97,6 @@ OSDOBJS += \
 	$(OSDOBJ)/modules/debugger/debugqt.o \
 
 
-ifeq ($(OS),Windows_NT)
-LIBS += -lwinmm -lwsock32
-endif
-
 LIBS += -lasound -lpthread
 BASELIBS += -lpthread
 
@@ -111,3 +108,4 @@ BASELIBS += -lpthread
 $(LIBOCORE): $(OSDCOREOBJS)
 
 $(LIBOSD): $(OSDOBJS)
+
