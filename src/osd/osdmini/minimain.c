@@ -43,10 +43,6 @@ void (*osd_input_init)(void) = NULL;
 void (*osd_input_update)(void) = NULL;
 void (*osd_input_exit)(void) = NULL;
 
-void (*osd_video_init)(void) = NULL;
-void (*osd_video_update)(bool skip_draw) = NULL;
-void (*osd_video_exit)(void) = NULL;
-
 
 //============================================================
 //  mini_osd_options

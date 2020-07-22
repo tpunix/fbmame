@@ -154,15 +154,32 @@ static kt_table key_trans_table[] =
 
 UINT8 vt_keystate[128];
 
-
-/******************************************************************************/
-
-
 static INT32 keyboard_get_state(void *device_internal, void *item_internal)
 {
 	UINT8 *keystate = (UINT8 *)item_internal;
 	return *keystate;
 }
+
+void input_keyboard_init(void)
+{
+	int i = 0;
+
+	while(1){
+		if(key_trans_table[i].mame_key == ITEM_ID_INVALID)
+			break;
+
+		int sc = key_trans_table[i].scan_key;
+		keyboard_device->add_item(
+				key_trans_table[i].ui_name, key_trans_table[i].mame_key, keyboard_get_state, &vt_keystate[sc]);
+		i += 1;
+	}
+
+	memset(vt_keystate, 0, sizeof(vt_keystate));
+}
+
+/******************************************************************************/
+
+
 
 void input_exit_vt(void);
 static void sigint_handle(int signum)
@@ -181,13 +198,11 @@ static struct termios new_termios, cur_termios;
 
 void input_init_vt(void)
 {
-	int i, fd;
+	int fd;
 	struct vt_stat vtstate;
 	char vpath[16];
 
 	signal(SIGINT, sigint_handle);
-
-	memset(vt_keystate, 0, sizeof(vt_keystate));
 
 	fd = open("/dev/tty0", O_RDWR);
 	ioctl(fd, VT_GETSTATE, &vtstate);
@@ -229,17 +244,7 @@ void input_init_vt(void)
 		printk("Open %s failed!\n", vpath);
 	}
 
-	i = 0;
-	while(1){
-		if(key_trans_table[i].mame_key == ITEM_ID_INVALID)
-			break;
-
-		int sc = key_trans_table[i].scan_key;
-		keyboard_device->add_item(
-				key_trans_table[i].ui_name, key_trans_table[i].mame_key, keyboard_get_state, &vt_keystate[sc]);
-		i += 1;
-	}
-
+	input_keyboard_init();
 }
 
 void input_exit_vt(void)
@@ -277,6 +282,9 @@ void input_update_vt(void)
 	}
 
 }
+
+
+/******************************************************************************/
 
 
 void input_register_vt(void)

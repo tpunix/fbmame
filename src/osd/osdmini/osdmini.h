@@ -41,38 +41,74 @@ private:
 };
 
 
+#define QOBJ_IDLE    0
+#define QOBJ_WRITE   1
+#define QOBJ_READY   2
+#define QOBJ_USING   3
+
+typedef struct _queue_obj
+{
+	int state;
+	int age;
+	void *data1;
+	int data2;
+}QOBJ;
+
+typedef struct {
+	int size;
+	QOBJ *list;
+}SIMPLE_QUEUE;
+
 
 //============================================================
 //  GLOBAL VARIABLES
 //============================================================
 
-extern const options_entry mame_win_options[];
+extern int osdmini_run;
 
-// defined in winwork.c
-extern int osd_num_processors;
+extern const options_entry mame_win_options[];
 
 extern render_target *our_target;
 
 extern input_device *keyboard_device;
+extern UINT8 *vt_keystate;
 
-extern int osdmini_run;
-
+extern int fb_xres, fb_yres, fb_bpp, fb_pitch;
+extern UINT8 *fb_base_addr;
 
 
 //============================================================
 //  FUNCTION PROTOTYPES
 //============================================================
 
+SIMPLE_QUEUE *simple_queue_create(int size);
+void simple_queue_free(SIMPLE_QUEUE *sq);
+QOBJ *get_idle_qobj(SIMPLE_QUEUE *sq);
+QOBJ *get_ready_qobj(SIMPLE_QUEUE *sq);
+void qobj_set_ready(QOBJ *qobj);
+void qobj_set_idle(QOBJ *qobj);
+void qobj_init(QOBJ *qobj, void *data1, int data2);
+
+
+void input_keyboard_init(void);
+
 
 extern void (*osd_input_init)(void);
 extern void (*osd_input_update)(void);
 extern void (*osd_input_exit)(void);
 
-extern void (*osd_video_init)(void);
-extern void (*osd_video_update)(bool skip_draw);
-extern void (*osd_video_exit)(void);
+
+extern void (*osd_video_init_backend)(void);
+extern void (*osd_video_exit_backend)(void);
+
+void osd_video_init(void);
+void osd_video_update(bool skip_draw);
+void osd_video_exit(void);
 
 
 void input_register_vt(void);
+void input_register_remote(void);
 void video_register_fbcon(void);
+void video_register_remote(void);
+
 

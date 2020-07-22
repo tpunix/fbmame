@@ -74,8 +74,11 @@ OSDCOREOBJS = \
 
 OSDOBJS = \
 	$(MINIOBJ)/minimain.o \
+	$(MINIOBJ)/video.o \
 	$(MINIOBJ)/input_vt.o \
+	$(MINIOBJ)/input_remote.o \
 	$(MINIOBJ)/video_fbcon.o \
+	$(MINIOBJ)/video_remote.o \
 	$(OSDOBJ)/modules/sync/work_mini.o \
 	$(OSDOBJ)/modules/lib/osdobj_common.o  \
 	$(OSDOBJ)/modules/midi/none.o \
