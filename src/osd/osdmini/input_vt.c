@@ -164,7 +164,7 @@ static INT32 keyboard_get_state(void *device_internal, void *item_internal)
 	return *keystate;
 }
 
-
+void input_exit_vt(void);
 static void sigint_handle(int signum)
 {
 	printk("\nsigint_handle!\n");
@@ -278,6 +278,13 @@ void input_update_vt(void)
 
 }
 
+
+void input_register_vt(void)
+{
+	osd_input_init = input_init_vt;
+	osd_input_exit = input_exit_vt;
+	osd_input_update = input_update_vt;
+}
 
 /******************************************************************************/
 

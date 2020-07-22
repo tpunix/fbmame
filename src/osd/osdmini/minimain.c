@@ -39,6 +39,15 @@ input_device *keyboard_device;
 int osdmini_run = 0;
 
 
+void (*osd_input_init)(void) = NULL;
+void (*osd_input_update)(void) = NULL;
+void (*osd_input_exit)(void) = NULL;
+
+void (*osd_video_init)(void) = NULL;
+void (*osd_video_update)(bool skip_draw) = NULL;
+void (*osd_video_exit)(void) = NULL;
+
+
 //============================================================
 //  mini_osd_options
 //============================================================
@@ -84,6 +93,9 @@ void mini_osd_interface::init(running_machine &machine)
 {
 	osdmini_run = 1;
 
+	input_register_vt();
+	video_register_fbcon();
+
 	// call our parent
 	osd_common_t::init(machine);
 	osd_common_t::init_subsystems();
@@ -95,16 +107,16 @@ void mini_osd_interface::init(running_machine &machine)
 	keyboard_device = machine.input().device_class(DEVICE_CLASS_KEYBOARD).add_device("Keyboard");
 
 
-	input_init_vt();
-	video_init_fbcon();
+	osd_input_init();
+	osd_video_init();
 
 }
 
 
 void mini_osd_interface::update(bool skip_redraw)
 {
-	video_update_fbcon(skip_redraw);
-	input_update_vt();
+	osd_video_update(skip_redraw);
+	osd_input_update();
 }
 
 
@@ -115,8 +127,8 @@ void mini_osd_interface::osd_exit(void)
 
 	osd_common_t::osd_exit();
 
-	video_exit_fbcon();
-	input_exit_vt();
+	osd_video_exit();
+	osd_input_exit();
 }
 
 

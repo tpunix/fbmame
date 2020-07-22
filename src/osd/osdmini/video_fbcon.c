@@ -414,6 +414,12 @@ void video_exit_fbcon(void)
 	simple_queue_free(fbo_queue);
 }
 
+void video_register_fbcon(void)
+{
+	osd_video_init = video_init_fbcon;
+	osd_video_exit = video_exit_fbcon;
+	osd_video_update = video_update_fbcon;
+}
 
 /******************************************************************************/
 

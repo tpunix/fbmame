@@ -64,12 +64,15 @@ extern int osdmini_run;
 //============================================================
 
 
-void input_init_vt(void);
-void input_update_vt(void);
-void input_exit_vt(void);
+extern void (*osd_input_init)(void);
+extern void (*osd_input_update)(void);
+extern void (*osd_input_exit)(void);
 
-void video_init_fbcon(void);
-void video_update_fbcon(bool skip_draw);
-void video_exit_fbcon(void);
+extern void (*osd_video_init)(void);
+extern void (*osd_video_update)(bool skip_draw);
+extern void (*osd_video_exit)(void);
 
+
+void input_register_vt(void);
+void video_register_fbcon(void);
 
