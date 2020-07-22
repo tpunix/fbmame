@@ -97,7 +97,7 @@ OSDOBJS += \
 	$(OSDOBJ)/modules/debugger/debugqt.o \
 
 
-LIBS += -lasound -lpthread
+LIBS += -lasound -lpthread -lrt
 BASELIBS += -lpthread
 
 

@@ -23,6 +23,8 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/fb.h>
+#include <mqueue.h>
+#include <errno.h>
 
 
 /******************************************************************************/
@@ -145,13 +147,13 @@ static int vblank_wait;
 
 
 static SIMPLE_QUEUE *fbo_queue;
-static SIMPLE_QUEUE *render_queue;
+mqd_t render_mq;
 
-static osd_event *render_event;
 static osd_thread *render_thread;
 static osd_thread *vblank_thread;
 static void *video_fbcon_render_thread(void *param);
 static void *video_fbcon_vblank_thread(void *param);
+
 
 
 static void check_vblank(void)
@@ -174,6 +176,7 @@ static int fb_init(void)
 	int i;
 	struct fb_fix_screeninfo finfo;
 	struct fb_var_screeninfo vinfo;
+	struct mq_attr mattr;
 
 	fb_fd = open("/dev/fb0", O_RDWR);
 	if(fb_fd<0){
@@ -212,9 +215,21 @@ static int fb_init(void)
 
 	check_vblank();
 
+	mattr.mq_flags = 0;
+	mattr.mq_maxmsg = 3;
+	mattr.mq_msgsize = sizeof(void*);
+	mattr.mq_curmsgs = 0;
+	render_mq = mq_open("/mq_render", O_RDWR|O_CREAT|O_EXCL, 0666, &mattr);
+	if(render_mq<0 && errno==EEXIST){
+		mq_unlink("/mq_render");
+		render_mq = mq_open("/mq_render", O_RDWR|O_CREAT|O_EXCL, 0666, &mattr);
+	}
+	if(render_mq<0){
+		perror("mq_create(mq_render)");
+		exit(-1);
+	}
 
-	render_queue = simple_queue_create(4);
-	render_event = osd_event_alloc(0, 0);
+
 	render_thread = osd_thread_create(video_fbcon_render_thread, NULL);
 	vblank_thread = osd_thread_create(video_fbcon_vblank_thread, NULL);
 
@@ -270,18 +285,12 @@ static void video_swap_buffer(QOBJ *display)
 }
 
 
-static void do_render(void)
+static void do_render(render_primitive_list *primlist)
 {
 	QOBJ *draw_obj;
-	QOBJ *render_obj;
 	UINT8 *fb_draw_ptr;
-	render_primitive_list *primlist;
 
 	video_show_fps();
-
-	render_obj = get_ready_qobj(render_queue);
-	primlist = (render_primitive_list*)render_obj->data1;
-	qobj_set_idle(render_obj);
 
 	draw_obj = get_idle_qobj(fbo_queue);
 	if(draw_obj){
@@ -330,25 +339,30 @@ void video_update_fbcon(bool skip_draw)
 	render_primitive_list &primlist = our_target->get_primitives();
 	primlist.acquire_lock();
 
-	QOBJ *render_obj = get_idle_qobj(render_queue);
-	render_obj->data1 = &primlist;
-	qobj_set_ready(render_obj);
-
-	osd_event_set(render_event);
-
+	render_primitive_list *plist = &primlist;
+	int retv = mq_send(render_mq, (char*)&plist, sizeof(void*), 0);
 }
 
 
 static void *video_fbcon_render_thread(void *param)
 {
+	int retv=0;
+	render_primitive_list *primlist;
 
 	while(osdmini_run){
-		osd_event_wait(render_event, OSD_EVENT_WAIT_INFINITE);
+		retv = mq_receive(render_mq, (char*)&primlist, sizeof(void*), NULL);
+		if(retv<0){
+			if(errno==EINTR || errno==EAGAIN)
+				continue;
+			break;
+		}
+		
 		if(osdmini_run==0)
 			break;
-
-		do_render();
+		do_render(primlist);
 	}
+	if(retv<0)
+		perror("mq_receive");
 
 	printk("video_fbcon_render_thread stop!\n");
 	return NULL;
@@ -393,6 +407,11 @@ void video_init_fbcon(void)
 void video_exit_fbcon(void)
 {
 	printk("video_exit_fbcon!\n");
+
+	mq_close(render_mq);
+	mq_unlink("/mq_render");
+
+	simple_queue_free(fbo_queue);
 }
 
 
