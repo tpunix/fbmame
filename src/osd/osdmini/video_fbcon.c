@@ -27,8 +27,6 @@
 
 /******************************************************************************/
 
-#define USE_THREAD_RENDER
-
 
 //============================================================
 //  tripple buffer
@@ -149,13 +147,11 @@ static int vblank_wait;
 static SIMPLE_QUEUE *fbo_queue;
 static SIMPLE_QUEUE *render_queue;
 
-#ifdef USE_THREAD_RENDER
 static osd_event *render_event;
 static osd_thread *render_thread;
 static osd_thread *vblank_thread;
 static void *video_fbcon_render_thread(void *param);
 static void *video_fbcon_vblank_thread(void *param);
-#endif
 
 
 static void check_vblank(void)
@@ -218,11 +214,9 @@ static int fb_init(void)
 
 
 	render_queue = simple_queue_create(4);
-#ifdef USE_THREAD_RENDER
 	render_event = osd_event_alloc(0, 0);
 	render_thread = osd_thread_create(video_fbcon_render_thread, NULL);
 	vblank_thread = osd_thread_create(video_fbcon_vblank_thread, NULL);
-#endif
 
 	return 0;
 }
@@ -340,15 +334,10 @@ void video_update_fbcon(bool skip_draw)
 	render_obj->data1 = &primlist;
 	qobj_set_ready(render_obj);
 
-#ifdef USE_THREAD_RENDER
 	osd_event_set(render_event);
-#else
-	do_render();
-#endif
 
 }
 
-#ifdef USE_THREAD_RENDER
 
 static void *video_fbcon_render_thread(void *param)
 {
@@ -390,9 +379,6 @@ static void *video_fbcon_vblank_thread(void *param)
 	printk("video_fbcon_vblank_thread stop!\n");
 	return NULL;
 }
-
-
-#endif
 
 
 /******************************************************************************/
