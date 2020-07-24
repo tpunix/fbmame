@@ -48,10 +48,16 @@ void (*osd_input_exit)(void) = NULL;
 //  mini_osd_options
 //============================================================
 
-mini_osd_options::mini_osd_options()
-: osd_options()
+
+const options_entry mini_osd_options::s_option_entries[] =
 {
-	//add_entries(s_option_entries);
+	{"slave", "0",    OPTION_BOOLEAN, "mame work in slave mode" },
+	{ NULL }
+};
+
+mini_osd_options::mini_osd_options() : osd_options()
+{
+	add_entries(s_option_entries);
 }
 
 //============================================================
@@ -72,8 +78,10 @@ int main(int argc, char *argv[])
 
 /******************************************************************************/
 
-mini_osd_interface::mini_osd_interface(mini_osd_options &options) : osd_common_t(options)
+mini_osd_interface::mini_osd_interface(mini_osd_options &options)
+	: osd_common_t(options), m_options(options)
 {
+
 }
 
 
@@ -89,8 +97,15 @@ void mini_osd_interface::init(running_machine &machine)
 {
 	osdmini_run = 1;
 
-	input_register_vt();
-	video_register_fbcon();
+	printk("slave mode: %d\n", options().slave());
+
+	if(options().slave()){
+		input_register_remote();
+		video_register_fbcon();
+	}else{
+		input_register_vt();
+		video_register_fbcon();
+	}
 
 	// call our parent
 	osd_common_t::init(machine);

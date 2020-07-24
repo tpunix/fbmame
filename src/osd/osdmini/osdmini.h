@@ -16,8 +16,12 @@
 class mini_osd_options : public osd_options
 {
 public:
-	// construction/destruction
 	mini_osd_options();
+
+	bool slave() const { return bool_value("slave"); }
+
+private:
+	static const options_entry s_option_entries[];
 
 };
 
@@ -37,7 +41,11 @@ public:
 	virtual void update(bool skip_redraw);
 	virtual void osd_exit();
 
+	mini_osd_options &options() { return m_options; }
+
 private:
+
+	mini_osd_options &m_options;
 };
 
 
@@ -66,12 +74,10 @@ typedef struct {
 
 extern int osdmini_run;
 
-extern const options_entry mame_win_options[];
-
 extern render_target *our_target;
 
 extern input_device *keyboard_device;
-extern UINT8 *vt_keystate;
+extern UINT8 vt_keystate[];
 
 extern int fb_xres, fb_yres, fb_bpp, fb_pitch;
 extern UINT8 *fb_base_addr;

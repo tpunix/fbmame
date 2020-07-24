@@ -29,9 +29,9 @@ mqd_t input_mq;
 void input_init_remote(void)
 {
 
-	input_mq = mq_open("mq_input", O_RDWR|O_NONBLOCK);
+	input_mq = mq_open("/mq_input", O_RDWR|O_NONBLOCK);
 	if(input_mq<0){
-		perror("mq_open(mq_input)");
+		perror("mq_open(/mq_input)");
 		exit(-1);
 	}
 
@@ -46,7 +46,7 @@ void input_update_remote(void)
 
 	while(1){
 		retv = mq_receive(input_mq, (char*)&key, 4, NULL);
-		if(retv<0)
+		if(retv<=0)
 			break;
 		value = key&0xffff;
 		key >>= 16;
@@ -54,9 +54,9 @@ void input_update_remote(void)
 			continue;
 
 		if(value){
-			vt_keystate[key] = 0;
+			vt_keystate[key] = 1;
 		}else{
-			vt_keystate[key] = value;
+			vt_keystate[key] = 0;
 		}
 	}
 
