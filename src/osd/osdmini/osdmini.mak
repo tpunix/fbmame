@@ -103,6 +103,30 @@ OSDOBJS += \
 LIBS += -lasound -lpthread -lrt
 BASELIBS += -lpthread
 
+#-------------------------------------------------
+# mame master
+#-------------------------------------------------
+
+MAMEMASTER = mmaster
+
+
+MASTERSRC = $(SRC)/osd/$(OSD)/mmaster
+MASTEROBJ = $(OBJ)/osd/$(OSD)/mmaster
+
+OBJDIRS += $(MASTEROBJ) 
+
+BUILD += $(MAMEMASTER)
+
+
+MMOBJS += $(MASTEROBJ)/mmaster.o
+MMOBJS += $(MASTEROBJ)/fb.o
+MMOBJS += $(MASTEROBJ)/input.o
+
+$(MAMEMASTER): $(MMOBJS)
+	@echo Linking $@ ...
+	$(LD) $(LDFLAGS) $^ -o $@ -lpthread -lrt
+
+
 
 #-------------------------------------------------
 # rules for building the libaries
