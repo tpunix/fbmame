@@ -311,7 +311,7 @@ void ui_manager::display_startup_screens(bool first_time, bool show_disclaimer)
 	const int maxstate = 4;
 	int str = machine().options().seconds_to_run();
 	bool show_gameinfo = !machine().options().skip_gameinfo();
-	bool show_warnings = true, show_mandatory_fileman = true;
+	bool show_warnings = false, show_mandatory_fileman = true;
 	int state;
 
 	// disable everything if we are using -str for 300 or fewer seconds, or if we're the empty driver,
@@ -323,6 +323,7 @@ void ui_manager::display_startup_screens(bool first_time, bool show_disclaimer)
 	// also disable for the JavaScript port since the startup screens do not run asynchronously
 	show_gameinfo = show_warnings = show_disclaimer = FALSE;
 	#endif
+	show_gameinfo = false;
 
 	// loop over states
 	set_handler(handler_ingame, 0);
@@ -1673,6 +1674,7 @@ UINT32 ui_manager::handler_load_save(running_machine &machine, render_container 
 	if (state == LOADSAVE_NONE)
 		return 0;
 
+#if 0
 	// okay, we're waiting for a key to select a slot; display a message
 	if (state == LOADSAVE_SAVE)
 		machine.ui().draw_message_window(container, "Select position to save to");
@@ -1707,6 +1709,10 @@ UINT32 ui_manager::handler_load_save(running_machine &machine, render_container 
 				file = id - ITEM_ID_0_PAD + '0';
 	if (file == 0)
 		return state;
+#else
+	// only support slot '0'
+	file = '0';
+#endif
 
 	// display a popup indicating that the save will proceed
 	sprintf(filename, "%c", file);
