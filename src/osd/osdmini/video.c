@@ -187,6 +187,7 @@ void video_show_fps(void)
 //============================================================
 
 
+static float game_aspect=0;
 static int game_width=0, game_height=0;
 static int fb_draw_w=0, fb_draw_h=0;
 static int fb_draw_offset = 0;
@@ -197,7 +198,7 @@ static void do_render(render_primitive_list *primlist)
 	QOBJ *draw_obj;
 	UINT8 *fb_draw_ptr;
 
-	video_show_fps();
+	//video_show_fps();
 
 	draw_obj = get_idle_qobj(fbo_queue);
 	if(draw_obj){
@@ -251,11 +252,15 @@ void osd_video_update(bool skip_draw)
 	int minwidth, minheight;
 	our_target->compute_minimum_size(minwidth, minheight);
 
-	if(game_width!=minwidth || game_height!=minheight){
-		printk("Change res to %dx%d\n", minwidth, minheight);
+	float new_aspect = our_target->effective_aspect();
+
+	if(game_width!=minwidth || game_height!=minheight || game_aspect != new_aspect){
+		printk("Change res to %dx%d  aspect %f\n", minwidth, minheight, new_aspect);
 		game_width = minwidth;
 		game_height = minheight;
+		game_aspect = new_aspect;
 
+#if 0
 		fb_draw_w = (minwidth * fb_yres) / minheight;
 		if(fb_draw_w<fb_xres){
 			fb_draw_h = fb_yres;
@@ -265,10 +270,22 @@ void osd_video_update(bool skip_draw)
 			fb_draw_w = fb_xres;
 			fb_draw_offset = ((fb_yres-fb_draw_h)/2)*fb_pitch;
 		}
+#else
+		float fb_aspect = (float)fb_xres/(float)fb_yres;
+		if(new_aspect>fb_aspect){
+			fb_draw_w = fb_xres;
+			fb_draw_h = (float)fb_xres/new_aspect;
+			fb_draw_offset = ((fb_yres-fb_draw_h)/2)*fb_pitch;
+		}else{
+			fb_draw_w = (float)fb_yres*new_aspect;
+			fb_draw_h = fb_yres;
+			fb_draw_offset = ((fb_xres-fb_draw_w)/2)*(fb_bpp/8);
+		}
+#endif
 		printk("Scale: %dx%d\n", fb_draw_w, fb_draw_h);
 
 	}
-	our_target->set_bounds(fb_draw_w, fb_draw_h);
+	our_target->set_bounds(fb_draw_w, fb_draw_h, 1);
 
 
 	// get the list of primitives for the target at the current size

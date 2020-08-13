@@ -637,6 +637,7 @@ public:
 	UINT32 width() const { return m_width; }
 	UINT32 height() const { return m_height; }
 	float pixel_aspect() const { return m_pixel_aspect; }
+	float effective_aspect() const { return m_curview->effective_aspect(m_layerconfig); }
 	float max_update_rate() const { return m_max_refresh; }
 	int orientation() const { return m_orientation; }
 	render_layer_config layer_config() const { return m_layerconfig; }

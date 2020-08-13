@@ -1353,11 +1353,13 @@ render_primitive_list &render_target::get_primitives()
 
 	// switch to the next primitive list
 	render_primitive_list &list = m_primlist[m_listindex];
+#if defined(OSD_MINI)
 	while(list.in_use()){
 		//printf("\n get_primitives %p in_use!\n", &list);
 		osd_sleep(2000);
 	}
 	list.use();
+#endif
 
 	m_listindex = (m_listindex + 1) % ARRAY_LENGTH(m_primlist);
 	list.acquire_lock();

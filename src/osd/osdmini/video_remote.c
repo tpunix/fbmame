@@ -105,6 +105,7 @@ void video_init_remote(void)
 
 	for(i=0; i<fbo_queue->size; i++){
 		fbo_queue->list[i].data1 = shm_addr + i*fb_yres*fb_pitch;
+		memset(shm_addr + i*fb_yres*fb_pitch, 0, fb_yres*fb_pitch);
 	}
 
 }
