@@ -72,8 +72,6 @@ typedef struct {
 //  GLOBAL VARIABLES
 //============================================================
 
-extern int osdmini_run;
-
 extern render_target *our_target;
 
 extern input_device *keyboard_device;

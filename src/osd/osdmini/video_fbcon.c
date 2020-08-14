@@ -37,6 +37,7 @@ extern SIMPLE_QUEUE *fbo_queue;
 
 static osd_thread *vblank_thread;
 
+static int vblank_running;
 
 /******************************************************************************/
 
@@ -47,7 +48,7 @@ static void *video_fbcon_vblank_thread(void *param)
 	QOBJ *new_obj;
 	QOBJ *release_obj = NULL;
 
-	while(osdmini_run){
+	while(vblank_running){
 		new_obj = get_ready_qobj(fbo_queue);
 		if(new_obj){
 			g_vinfo.yoffset = new_obj->data2;
@@ -69,6 +70,7 @@ static void *video_fbcon_vblank_thread(void *param)
 		}
 	}
 
+	vblank_running = -1;
 	printk("video_fbcon_vblank_thread stop!\n");
 	return NULL;
 }
@@ -136,12 +138,18 @@ void video_init_fbcon(void)
 
 	check_vblank();
 
+	vblank_running = 1;
 	vblank_thread = osd_thread_create(video_fbcon_vblank_thread, NULL);
 
 }
 
+
 void video_exit_fbcon(void)
 {
+	vblank_running = 0;
+	while(vblank_running!=-1){
+		osd_sleep(1000);
+	}
 	simple_queue_free(fbo_queue);
 }
 

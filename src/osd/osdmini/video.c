@@ -128,6 +128,7 @@ mqd_t render_mq;
 
 static osd_thread *render_thread;
 static void *video_render_thread(void *param);
+static int video_running;
 
 
 void (*osd_video_init_backend)(void) = NULL;
@@ -142,7 +143,7 @@ void osd_video_init(void)
 	osd_video_init_backend();
 
 	mattr.mq_flags = 0;
-	mattr.mq_maxmsg = 3;
+	mattr.mq_maxmsg = 4;
 	mattr.mq_msgsize = sizeof(void*);
 	mattr.mq_curmsgs = 0;
 	render_mq = mq_open("/mq_render", O_RDWR|O_CREAT|O_EXCL, 0666, &mattr);
@@ -155,6 +156,7 @@ void osd_video_init(void)
 		exit(-1);
 	}
 
+	video_running = 1;
 	render_thread = osd_thread_create(video_render_thread, NULL);
 
 }
@@ -219,21 +221,22 @@ static void *video_render_thread(void *param)
 	int retv=0;
 	render_primitive_list *primlist;
 
-	while(osdmini_run){
+	while(video_running){
 		retv = mq_receive(render_mq, (char*)&primlist, sizeof(void*), NULL);
 		if(retv<0){
 			if(errno==EINTR || errno==EAGAIN)
 				continue;
 			break;
 		}
-		
-		if(osdmini_run==0)
+
+		if(video_running==0)
 			break;
 		do_render(primlist);
 	}
 	if(retv<0)
 		perror("mq_receive");
 
+	video_running = -1;
 	printk("video_render_thread stop!\n");
 	return NULL;
 }
@@ -300,6 +303,16 @@ void osd_video_update(bool skip_draw)
 void osd_video_exit(void)
 {
 	printk("osd_video_exit!\n");
+	char *empty = NULL;
+
+	video_running = 0;
+
+	osd_sleep(100000);
+	mq_send(render_mq, (char*)&empty, sizeof(char*), 0);
+
+	while(video_running!=-1){
+		osd_sleep(1000);
+	}
 
 	mq_close(render_mq);
 	mq_unlink("/mq_render");

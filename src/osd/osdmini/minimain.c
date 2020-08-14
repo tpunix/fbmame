@@ -36,8 +36,6 @@ render_target *our_target;
 // a single input device
 input_device *keyboard_device;
 
-int osdmini_run = 0;
-
 
 void (*osd_input_init)(void) = NULL;
 void (*osd_input_update)(void) = NULL;
@@ -95,8 +93,6 @@ mini_osd_interface::~mini_osd_interface()
 
 void mini_osd_interface::init(running_machine &machine)
 {
-	osdmini_run = 1;
-
 	printk("slave mode: %d\n", options().slave());
 
 	if(options().slave()){
@@ -134,7 +130,6 @@ void mini_osd_interface::update(bool skip_redraw)
 void mini_osd_interface::osd_exit(void)
 {
 	printk("\nosd_exit!\n");
-	osdmini_run = 0;
 
 	osd_common_t::osd_exit();
 
