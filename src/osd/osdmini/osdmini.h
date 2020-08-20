@@ -73,6 +73,7 @@ typedef struct {
 //============================================================
 
 extern render_target *our_target;
+extern running_machine *g_machine;
 
 extern input_device *keyboard_device;
 extern UINT8 vt_keystate[];

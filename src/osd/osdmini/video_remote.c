@@ -78,6 +78,8 @@ struct shm_video
 
 	int vobj_cnt;
 	QOBJ vobj[4];
+
+	int cmd_state;
 };
 
 

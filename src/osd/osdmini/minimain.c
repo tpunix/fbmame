@@ -32,6 +32,7 @@
 
 // a single rendering target
 render_target *our_target;
+running_machine *g_machine;
 
 // a single input device
 input_device *keyboard_device;
@@ -94,6 +95,8 @@ mini_osd_interface::~mini_osd_interface()
 void mini_osd_interface::init(running_machine &machine)
 {
 	printk("slave mode: %d\n", options().slave());
+
+	g_machine = &machine;
 
 	if(options().slave()){
 		input_register_remote();

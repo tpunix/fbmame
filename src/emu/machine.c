@@ -885,12 +885,16 @@ void running_machine::call_notifiers(machine_notification which)
 //  or load
 //-------------------------------------------------
 
+int saveload_state;
+
 void running_machine::handle_saveload()
 {
 	UINT32 openflags = (m_saveload_schedule == SLS_LOAD) ? OPEN_FLAG_READ : (OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
 	const char *opnamed = (m_saveload_schedule == SLS_LOAD) ? "loaded" : "saved";
 	const char *opname = (m_saveload_schedule == SLS_LOAD) ? "load" : "save";
 	file_error filerr = FILERR_NONE;
+
+	saveload_state = -1;
 
 	// if no name, bail
 	emu_file file(m_saveload_searchpath, openflags);
@@ -905,6 +909,7 @@ void running_machine::handle_saveload()
 		if ((this->time() - m_saveload_schedule_time) > attotime::from_seconds(1))
 		{
 			popmessage("Unable to %s due to pending anonymous timers. See error.log for details.", opname);
+			saveload_state = -2;
 			goto cancel;
 		}
 		return;
@@ -922,38 +927,46 @@ void running_machine::handle_saveload()
 		{
 			case STATERR_ILLEGAL_REGISTRATIONS:
 				popmessage("Error: Unable to %s state due to illegal registrations. See error.log for details.", opname);
+				saveload_state = -3;
 				break;
 
 			case STATERR_INVALID_HEADER:
 				popmessage("Error: Unable to %s state due to an invalid header. Make sure the save state is correct for this game.", opname);
+				saveload_state = -4;
 				break;
 
 			case STATERR_READ_ERROR:
 				popmessage("Error: Unable to %s state due to a read error (file is likely corrupt).", opname);
+				saveload_state = -5;
 				break;
 
 			case STATERR_WRITE_ERROR:
 				popmessage("Error: Unable to %s state due to a write error. Verify there is enough disk space.", opname);
+				saveload_state = -6;
 				break;
 
 			case STATERR_NONE:
-				if (!(m_system.flags & GAME_SUPPORTS_SAVE))
+				if (!(m_system.flags & GAME_SUPPORTS_SAVE)) {
 					popmessage("State successfully %s.\nWarning: Save states are not officially supported for this game.", opnamed);
-				else
+				} else {
 					popmessage("State successfully %s.", opnamed);
+				}
+				saveload_state = 0;
 				break;
 
 			default:
 				popmessage("Error: Unknown error during state %s.", opnamed);
+				saveload_state = -3;
 				break;
 		}
 
 		// close and perhaps delete the file
 		if (saverr != STATERR_NONE && m_saveload_schedule == SLS_SAVE)
 			file.remove_on_close();
-	}
-	else
+	} else {
 		popmessage("Error: Failed to open file for %s operation.", opname);
+		saveload_state = -7;
+	}
 
 	// unschedule the operation
 cancel:
