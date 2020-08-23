@@ -120,6 +120,13 @@ void video_exit_remote(void)
 }
 
 
+void remote_set_state(int state)
+{
+	struct shm_video *sv = (struct shm_video*)shm_ctrl;
+	sv->cmd_state = state;
+}
+
+
 /******************************************************************************/
 
 

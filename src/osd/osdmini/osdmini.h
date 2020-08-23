@@ -116,4 +116,6 @@ void input_register_remote(void);
 void video_register_fbcon(void);
 void video_register_remote(void);
 
+void remote_set_state(int state);
+
 

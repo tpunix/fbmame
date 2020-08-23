@@ -42,25 +42,29 @@ extern int saveload_state;
 
 void input_handle_cmd(int key, int value)
 {
-	char buf[16];
+	char buf[4] = {0, 0, 0, 0};
+
 	if(key==0x8001){
 		// save
 		buf[0] = '0'+value;
-		buf[1] = 0;
 		printf("\nimmediate_save %s\n", buf);
 		g_machine->immediate_save((const char*)buf);
 		printf("  done. %d\n", saveload_state);
-		g_machine->resume();
+		remote_set_state(saveload_state);
 	}else if(key==0x8002){
 		// load
 		buf[0] = '0'+value;
-		buf[1] = 0;
 		printf("\nimmediate_load %s\n", buf);
 		g_machine->immediate_load((const char*)buf);
 		printf("  done. %d\n", saveload_state);
+		remote_set_state(saveload_state);
+	}else if(key==0x8003){
+		g_machine->pause();
+	}else if(key==0x8004){
 		g_machine->resume();
 	}
 }
+
 
 void input_update_remote(void)
 {
