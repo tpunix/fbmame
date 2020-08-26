@@ -189,6 +189,7 @@ void video_show_fps(void)
 //============================================================
 
 
+float aspect_set;
 static float game_aspect=0;
 static int game_width=0, game_height=0;
 static int fb_draw_w=0, fb_draw_h=0;
@@ -255,7 +256,17 @@ void osd_video_update(bool skip_draw)
 	int minwidth, minheight;
 	our_target->compute_minimum_size(minwidth, minheight);
 
-	float new_aspect = our_target->effective_aspect();
+	float new_aspect;
+	if(aspect_set){
+		if(aspect_set==1111){
+			aspect_set = (float)minwidth/(float)minheight;
+		}else if(aspect_set==2222){
+			aspect_set = (float)fb_xres/(float)fb_yres;
+		}
+		new_aspect = aspect_set;
+	}else{
+		new_aspect = our_target->effective_aspect();
+	}
 
 	if(game_width!=minwidth || game_height!=minheight || game_aspect != new_aspect){
 		printk("Change res to %dx%d  aspect %f\n", minwidth, minheight, new_aspect);
@@ -288,7 +299,7 @@ void osd_video_update(bool skip_draw)
 		printk("Scale: %dx%d\n", fb_draw_w, fb_draw_h);
 
 	}
-	our_target->set_bounds(fb_draw_w, fb_draw_h, 1);
+	our_target->set_bounds(fb_draw_w, fb_draw_h, 0);
 
 
 	// get the list of primitives for the target at the current size

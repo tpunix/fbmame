@@ -94,7 +94,16 @@ mini_osd_interface::~mini_osd_interface()
 
 void mini_osd_interface::init(running_machine &machine)
 {
-	printk("slave mode: %d\n", options().slave());
+	const char *aspect_value = options().aspect();
+	if(!strcmp(aspect_value, "auto")){
+		aspect_set = 0;
+	}else if(!strcmp(aspect_value, "keep")){
+		aspect_set = 1111;
+	}else if(!strcmp(aspect_value, "4:3")){
+		aspect_set = 4.0f/3.0f;
+	}else if(!strcmp(aspect_value, "full")){
+		aspect_set = 2222;
+	}
 
 	g_machine = &machine;
 

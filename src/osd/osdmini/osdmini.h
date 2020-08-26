@@ -81,6 +81,8 @@ extern UINT8 vt_keystate[];
 extern int fb_xres, fb_yres, fb_bpp, fb_pitch;
 extern UINT8 *fb_base_addr;
 
+extern float aspect_set;
+
 
 //============================================================
 //  FUNCTION PROTOTYPES
