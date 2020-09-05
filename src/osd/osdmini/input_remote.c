@@ -62,6 +62,8 @@ void input_handle_cmd(int key, int value)
 		g_machine->pause();
 	}else if(key==0x8004){
 		g_machine->resume();
+	}else if(key==0x8005){
+		g_machine->schedule_exit();
 	}
 }
 
