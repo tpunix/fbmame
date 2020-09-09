@@ -23,7 +23,7 @@
 
 
 #define SHM_KEY 0x76057810
-#define SHM_SIZE 0x01000000
+#define SHM_SIZE 0x02000000
 
 
 static int shmid;
