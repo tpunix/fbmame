@@ -195,12 +195,51 @@ static int game_width=0, game_height=0;
 static int fb_draw_w=0, fb_draw_h=0;
 static int fb_draw_offset = 0;
 
+static int prim_flags = 0;
+static void dump_primlist(render_primitive_list *primlist)
+{
+	const render_primitive *prim = primlist->first();
+	int type;
+
+	while(prim){
+		if(prim->type==render_primitive::LINE){
+			printf("LINE: ");
+			type = 1;
+		}else if(prim->texture.base){
+			printf("QUAD: ");
+			type = 2;
+		}else{
+			printf("RECT: ");
+			type = 3;
+		}
+
+		printf("%08x (%4d,%4d), (%4d,%4d), [%3d %3d %3d %3d]\n", prim->flags,
+				(int)prim->bounds.x0, (int)prim->bounds.y0, (int)prim->bounds.x1, (int)prim->bounds.y1,
+				(int)(prim->color.r*255), (int)(prim->color.g*255), (int)(prim->color.b*255), (int)(prim->color.a*255));
+		if(type==2){
+			printf("    texture: (%4d,%4d), pal:%p\n",
+				prim->texture.width, prim->texture.height, prim->texture.palette());
+			printf("    text_uv: (%4d,%4d), (%4d,%4d), (%4d,%4d), (%4d,%4d)\n",
+				(int)prim->texcoords.tl.u, (int)prim->texcoords.tl.v,
+				(int)prim->texcoords.tr.u, (int)prim->texcoords.tr.v,
+				(int)prim->texcoords.bl.u, (int)prim->texcoords.bl.v,
+				(int)prim->texcoords.br.u, (int)prim->texcoords.br.v
+				);
+		}
+
+		prim = prim->next();
+	}
+
+	printf("\n");
+
+}
 
 static void do_render(render_primitive_list *primlist)
 {
 	QOBJ *draw_obj;
 	UINT8 *fb_draw_ptr;
 
+	dump_primlist(primlist);
 	//video_show_fps();
 
 	draw_obj = get_idle_qobj(fbo_queue);
