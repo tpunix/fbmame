@@ -234,6 +234,8 @@ static void dump_primlist(render_primitive_list *primlist)
 
 }
 
+void draw_primlist(render_primitive_list *primlist, UINT8 *dst_addr, int width, int height, int pitch);
+
 static void do_render(render_primitive_list *primlist)
 {
 	QOBJ *draw_obj;
@@ -247,7 +249,8 @@ static void do_render(render_primitive_list *primlist)
 		fb_draw_ptr = (UINT8*)(draw_obj->data1) + fb_draw_offset;
 		// do the drawing here
 		//software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
-		software_renderer<UINT32, 0,0,0, 16,8,0, false, true>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
+		//software_renderer<UINT32, 0,0,0, 16,8,0, false, true>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
+		draw_primlist(primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch);
 		qobj_set_ready(draw_obj);
 	}
 

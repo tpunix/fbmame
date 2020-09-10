@@ -6,6 +6,10 @@
 //
 //============================================================
 
+#ifndef _OSDMINI_H_
+#define _OSDMINI_H_
+
+
 #include "options.h"
 #include "osdepend.h"
 #include "modules/lib/osdobj_common.h"
@@ -120,4 +124,5 @@ void video_register_remote(void);
 
 void remote_set_state(int state);
 
+#endif
 
