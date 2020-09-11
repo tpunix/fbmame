@@ -36,6 +36,81 @@
 
 /******************************************************************************/
 
+static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int width, int height, int pitch)
+{
+	int x0 = prim->bounds.x0;
+	int y0 = prim->bounds.y0;
+	int x1 = prim->bounds.x1;
+	int y1 = prim->bounds.y1;
+	int tw = prim->texture.width;
+	int th = prim->texture.height;
+	int w = x1-x0;
+	int h = y1-y0;
+	int x, y;
+
+
+	if(w>tw)
+		w = tw;
+
+	if(th>1){
+		if(h>th)
+			h = th;
+	}
+
+	UINT32 *src_addr = (UINT32*)prim->texture.base;
+	dst_addr += y0*pitch + x0*4;
+
+	int format = PRIMFLAG_GET_TEXFORMAT(prim->flags);
+	int mode = PRIMFLAG_GET_BLENDMODE(prim->flags);
+
+
+	if(format==TEXFORMAT_RGB32 || (format==TEXFORMAT_ARGB32 && mode==BLENDMODE_NONE)){
+		for(y=0; y<h; y++){
+			memcpy(dst_addr, src_addr, w*4);
+			dst_addr += pitch;
+			src_addr += prim->texture.rowpixels;
+		}
+	}else if(format==TEXFORMAT_ARGB32 && mode==BLENDMODE_ALPHA){
+		UINT32 pr = 256.0f * prim->color.r;
+		UINT32 pg = 256.0f * prim->color.g;
+		UINT32 pb = 256.0f * prim->color.b;
+		UINT32 pa = 256.0f * prim->color.a;
+
+		for(y=0; y<h; y++){
+			UINT32 *dst = (UINT32*)dst_addr;
+			UINT32 *src = (UINT32*)src_addr;
+			for(x=0; x<w; x++){
+				UINT32 sp = *src++;
+				UINT32 sa = (sp>>24)&0xff;
+				UINT32 sr = (sp>>16)&0xff;
+				UINT32 sg = (sp>> 8)&0xff;
+				UINT32 sb = (sp>> 0)&0xff;
+				if(sa){
+					sa *= pa;
+					UINT32 dp = *dst;
+					UINT32 dr = (dp>>16)&0xff;
+					UINT32 dg = (dp>> 8)&0xff;
+					UINT32 db = (dp>> 0)&0xff;
+					UINT32 da = 0x10000-sa;
+
+					dr = (sr*pr*sa + dr*da)>>24;
+					dg = (sg*pg*sa + dg*da)>>24;
+					db = (sb*pb*sa + db*da)>>24;
+
+					*dst++ = 0xff000000 | (dr<<16) | (dg<<8) | db;
+				}else{
+					dst++;
+				}
+			}
+			dst_addr += pitch;
+			if(th>1)
+				src_addr += prim->texture.rowpixels;
+		}
+	}
+
+}
+
+
 /******************************************************************************/
 
 
@@ -81,16 +156,15 @@ static void draw_rect_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 	int y1 = prim->bounds.y1;
 	int x, y;
 
-	UINT32 r, g, b;
-	UINT32 a = 255.0f * prim->color.a;
+	UINT32 r = 255.0f * prim->color.r;
+	UINT32 g = 255.0f * prim->color.g;
+	UINT32 b = 255.0f * prim->color.b;
+	UINT32 a = 256.0f * prim->color.a;
 
 	UINT32 *dst;
 	dst_addr += y0*pitch + x0*4;
 
-	if( (PRIMFLAG_GET_BLENDMODE(prim->flags) == BLENDMODE_NONE) || a>=0xff){
-		r = 255.0f * prim->color.r;
-		g = 255.0f * prim->color.g;
-		b = 255.0f * prim->color.b;
+	if( (PRIMFLAG_GET_BLENDMODE(prim->flags) == BLENDMODE_NONE) || a>=256){
 		UINT32 color = 0xff000000 | (r<<16) | (g<<8) | b;
 
 		for(y=y0; y<y1; y++){
@@ -102,19 +176,19 @@ static void draw_rect_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 		}
 
 	}else if(a>0){
-		r = (255.0f * prim->color.r * prim->color.a);
-		g = (255.0f * prim->color.g * prim->color.a);
-		b = (255.0f * prim->color.b * prim->color.a);
-		UINT32 inva = 255-a;
+		r = (r*a)<<16;
+		g = (g*a)<<8;
+		b = (b*a)<<0;
+		UINT32 inva = 256-a;
 
 		for(y=y0; y<y1; y++){
 			dst = (UINT32*)dst_addr;
 			for(x=x0; x<x1; x++){
 				UINT32 dp = *dst;
-				r += ((dp&0x00ff0000)*inva)>>24;
-				g += ((dp&0x0000ff00)*inva)>>16;
-				b += ((dp&0x000000ff)*inva)>>8;
-				*dst++ = 0xff000000 | (r<<16) | (g<<8) | b;
+				UINT32 dr = (r + (dp&0x00ff0000)*inva)>>24;
+				UINT32 dg = (g + (dp&0x0000ff00)*inva)>>16;
+				UINT32 db = (b + (dp&0x000000ff)*inva)>>8;
+				*dst++ = 0xff000000 | (dr<<16) | (dg<<8) | 0;
 			}
 			dst_addr += pitch;
 		}
@@ -134,6 +208,7 @@ void draw_primlist(render_primitive_list *primlist, UINT8 *dst_addr, int width, 
 		}else if(prim->texture.base==NULL){
 			draw_rect_rgb32(prim, dst_addr, width, height, pitch);
 		}else{
+			draw_quad_rgb32(prim, dst_addr, width, height, pitch);
 		}
 
 		prim = prim->next();
