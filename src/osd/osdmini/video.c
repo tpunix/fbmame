@@ -241,16 +241,21 @@ static void do_render(render_primitive_list *primlist)
 	QOBJ *draw_obj;
 	UINT8 *fb_draw_ptr;
 
-	dump_primlist(primlist);
+	//dump_primlist(primlist);
 	//video_show_fps();
 
 	draw_obj = get_idle_qobj(fbo_queue);
 	if(draw_obj){
 		fb_draw_ptr = (UINT8*)(draw_obj->data1) + fb_draw_offset;
 		// do the drawing here
+		INT64 tm = osd_ticks();
+
 		//software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
 		//software_renderer<UINT32, 0,0,0, 16,8,0, false, true>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
 		draw_primlist(primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch);
+
+		tm = osd_ticks()-tm;
+		printf("render time: %d\n", (int)tm);
 		qobj_set_ready(draw_obj);
 	}
 

@@ -80,6 +80,8 @@ OSDOBJS = \
 	$(MINIOBJ)/video_fbcon.o \
 	$(MINIOBJ)/video_remote.o \
 	$(MINIOBJ)/render.o \
+	$(MINIOBJ)/nresize.o \
+	$(MINIOBJ)/mresize.o \
 	$(OSDOBJ)/modules/sync/work_mini.o \
 	$(OSDOBJ)/modules/lib/osdobj_common.o  \
 	$(OSDOBJ)/modules/midi/none.o \

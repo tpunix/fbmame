@@ -32,9 +32,40 @@
 
 
 
+void blend_line_sample(UINT32 *dst, UINT32 *src, int width)
+{
+	int x;
 
+	for(x=0; x<width; x++){
+		UINT32 sp = *src++;
+		UINT32 sa = (sp>>24)&0xff;
+		UINT32 sr = (sp>>16)&0xff;
+		UINT32 sg = (sp>> 8)&0xff;
+		UINT32 sb = (sp>> 0)&0xff;
+		if(sa){
+			UINT32 dp = *dst;
+			UINT32 dr = (dp>>16)&0xff;
+			UINT32 dg = (dp>> 8)&0xff;
+			UINT32 db = (dp>> 0)&0xff;
+			UINT32 da = 0x100-sa;
+
+			dr = (sr*sa + dr*da)>>8;
+			dg = (sg*sa + dg*da)>>8;
+			db = (sb*sa + db*da)>>8;
+
+			*dst = 0xff000000 | (dr<<16) | (dg<<8) | db;
+		}
+		dst++;
+	}
+}
 
 /******************************************************************************/
+
+void ne10_img_resize_bilinear_rgba_c(UINT8* dst, UINT32 dst_width, UINT32 dst_height, UINT32 dst_stride,
+                                     UINT8* src, UINT32 src_width, UINT32 src_height, UINT32 src_stride);
+void m_resize_rgba_c(UINT8* dst, int dst_width, int dst_height, int dst_stride,
+					 UINT8* src, int src_width, int src_height, int src_stride);
+
 
 static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int width, int height, int pitch)
 {
@@ -49,13 +80,6 @@ static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 	int x, y;
 
 
-	if(w>tw)
-		w = tw;
-
-	if(th>1){
-		if(h>th)
-			h = th;
-	}
 
 	UINT32 *src_addr = (UINT32*)prim->texture.base;
 	dst_addr += y0*pitch + x0*4;
@@ -65,46 +89,72 @@ static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 
 
 	if(format==TEXFORMAT_RGB32 || (format==TEXFORMAT_ARGB32 && mode==BLENDMODE_NONE)){
+#if 1
+		m_resize_rgba_c(
+		//ne10_img_resize_bilinear_rgba_c(
+			dst_addr, w, h, pitch,
+			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4);
+#else
 		for(y=0; y<h; y++){
 			memcpy(dst_addr, src_addr, w*4);
 			dst_addr += pitch;
 			src_addr += prim->texture.rowpixels;
 		}
+#endif
 	}else if(format==TEXFORMAT_ARGB32 && mode==BLENDMODE_ALPHA){
 		UINT32 pr = 256.0f * prim->color.r;
 		UINT32 pg = 256.0f * prim->color.g;
 		UINT32 pb = 256.0f * prim->color.b;
 		UINT32 pa = 256.0f * prim->color.a;
 
-		for(y=0; y<h; y++){
-			UINT32 *dst = (UINT32*)dst_addr;
-			UINT32 *src = (UINT32*)src_addr;
-			for(x=0; x<w; x++){
-				UINT32 sp = *src++;
-				UINT32 sa = (sp>>24)&0xff;
-				UINT32 sr = (sp>>16)&0xff;
-				UINT32 sg = (sp>> 8)&0xff;
-				UINT32 sb = (sp>> 0)&0xff;
-				if(sa){
-					sa *= pa;
-					UINT32 dp = *dst;
-					UINT32 dr = (dp>>16)&0xff;
-					UINT32 dg = (dp>> 8)&0xff;
-					UINT32 db = (dp>> 0)&0xff;
-					UINT32 da = 0x10000-sa;
+		if(w>tw)
+			w = tw;
+		if(th>1){
+			if(h>th)
+				h = th;
+		}
 
-					dr = (sr*pr*sa + dr*da)>>24;
-					dg = (sg*pg*sa + dg*da)>>24;
-					db = (sb*pb*sa + db*da)>>24;
-
-					*dst++ = 0xff000000 | (dr<<16) | (dg<<8) | db;
-				}else{
-					dst++;
-				}
+		if(pr>=256 && pg>=256 && pb>=256 && pa>=256){
+			// simple mode, no color
+			for(y=0; y<h; y++){
+				blend_line_sample((UINT32*)dst_addr, (UINT32*)src_addr, w);
+				dst_addr += pitch;
+				if(th>1)
+					src_addr += prim->texture.rowpixels;
 			}
-			dst_addr += pitch;
-			if(th>1)
-				src_addr += prim->texture.rowpixels;
+
+		}else{
+
+			for(y=0; y<h; y++){
+				UINT32 *dst = (UINT32*)dst_addr;
+				UINT32 *src = (UINT32*)src_addr;
+				for(x=0; x<w; x++){
+					UINT32 sp = *src++;
+					UINT32 sa = (sp>>24)&0xff;
+					UINT32 sr = (sp>>16)&0xff;
+					UINT32 sg = (sp>> 8)&0xff;
+					UINT32 sb = (sp>> 0)&0xff;
+					if(sa){
+						sa *= pa;
+						UINT32 dp = *dst;
+						UINT32 dr = (dp>>16)&0xff;
+						UINT32 dg = (dp>> 8)&0xff;
+						UINT32 db = (dp>> 0)&0xff;
+						UINT32 da = 0x10000-sa;
+
+						dr = (sr*pr*sa + dr*da)>>24;
+						dg = (sg*pg*sa + dg*da)>>24;
+						db = (sb*pb*sa + db*da)>>24;
+
+						*dst++ = 0xff000000 | (dr<<16) | (dg<<8) | db;
+					}else{
+						dst++;
+					}
+				}
+				dst_addr += pitch;
+				if(th>1)
+					src_addr += prim->texture.rowpixels;
+			}
 		}
 	}
 
