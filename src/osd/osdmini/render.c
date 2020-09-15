@@ -85,6 +85,35 @@ void blend_line_sample_sse(UINT8 *dst, UINT8 *src, int width)
 
 #endif
 
+#ifdef USE_NEON
+void blend_line_sample_neon(UINT8 *dst, UINT8 *src, int width)
+{
+	__builtin_prefetch(src);
+	__builtin_prefetch(dst);
+
+	uint8x8_t c_ff = vdup_n_u8(0xff);
+
+	while(width>0){
+		__builtin_prefetch(src+32);
+		__builtin_prefetch(dst+32);
+		uint8x8x4_t mfg = vld4_u8(src);
+		uint8x8x4_t mbg = vld4_u8(dst);
+
+		mfg.val[2] = vmovn_u16(vshrq_n_u16(vaddq_u16(vmull_u8(mfg.val[2], mfg.val[3]), vmull_u8(mbg.val[2], vmvn_u8(mfg.val[3]))),8));
+		mfg.val[1] = vmovn_u16(vshrq_n_u16(vaddq_u16(vmull_u8(mfg.val[1], mfg.val[3]), vmull_u8(mbg.val[1], vmvn_u8(mfg.val[3]))),8));
+		mfg.val[0] = vmovn_u16(vshrq_n_u16(vaddq_u16(vmull_u8(mfg.val[0], mfg.val[3]), vmull_u8(mbg.val[0], vmvn_u8(mfg.val[3]))),8));
+		mfg.val[3] = c_ff;
+
+		vst4_u8(dst, mfg);
+
+		src += 8*4;
+		dst += 8*4;
+		width -= 8;
+	}
+}
+
+#endif
+
 
 void blend_line_sample_c(UINT32 *dst, UINT32 *src, int width)
 {
@@ -121,19 +150,40 @@ void blend_line_sample_c1(UINT8 *dst, UINT8 *src, int width)
 
 	while(width>0){
 		sp = *(UINT32*)src;
-		dp = *(UINT32*)dst;
-
 		sa = sp>>24;
-		da = sa^0xff;
-		srb = sp & 0x00ff00ff; // __sr__sb
-		sag = sp & 0x0000ff00; // ____sg__
-		drb = dp & 0x00ff00ff; // __dr__db
-		dag = dp & 0x0000ff00; // ____dg__
-		drb = (srb*sa + drb*da)>>8;     // __drrrdb
-		dag = (sag*sa + dag*da)>>8;     // ____dggg
-		dp = 0xff000000 | (drb&0x00ff00ff) | (dag&0x0000ff00);
-		*(UINT32*)dst = dp;
+		if(sa){
+			dp = *(UINT32*)dst;
+			da = sa^0xff;
+			srb = sp & 0x00ff00ff; // __sr__sb
+			sag = sp & 0x0000ff00; // ____sg__
+			drb = dp & 0x00ff00ff; // __dr__db
+			dag = dp & 0x0000ff00; // ____dg__
+			drb = (srb*sa + drb*da)>>8;     // __drrrdb
+			dag = (sag*sa + dag*da)>>8;     // ____dggg
+			dp = 0xff000000 | (drb&0x00ff00ff) | (dag&0x0000ff00);
+			*(UINT32*)dst = dp;
+		}
 
+		src += 4;
+		dst += 4;
+		width -= 1;
+	}
+}
+
+
+void blend_line_sample_c2(UINT8 *dst, UINT8 *src, int width)
+{
+	UINT32 sa, da;
+
+	while(width>0){
+		sa = src[3];
+		if(sa){
+			UINT32 da = 0x100-sa;
+			dst[3] = 0xff;
+			dst[2] = (src[2]*sa + dst[2]*da)>>8;
+			dst[1] = (src[1]*sa + dst[1]*da)>>8;
+			dst[0] = (src[0]*sa + dst[0]*da)>>8;
+		}
 		src += 4;
 		dst += 4;
 		width -= 1;
@@ -185,20 +235,33 @@ static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 		UINT32 pa = 256.0f * prim->color.a;
 		int src_rowpixels = prim->texture.rowpixels;
 
+#if 1
 		if(w!=tw || h!=th){
+			int new_pitch = ((w+7)&~7)*4;
 			m_resize_rgba_c(
-				srcbuf, w, h, pitch,
+				srcbuf, w, h, new_pitch,
 				(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4, NULL);
 			src_addr = (UINT32*)srcbuf;
-			src_rowpixels = pitch/4;
+			src_rowpixels = new_pitch/4;
 		}
+#else
+		if(w>tw) w = tw;
+		if(th>1){
+			if(h>th)
+				h = th;
+		}else{
+			src_rowpixels = 0;
+		}
+#endif
 
 		if(pr>=256 && pg>=256 && pb>=256 && pa>=256){
 			// simple mode, no color
 			for(y=0; y<h; y++){
 				//blend_line_sample_c((UINT32*)dst_addr, (UINT32*)src_addr, w);
 				blend_line_sample_c1((UINT8*)dst_addr, (UINT8*)src_addr, w);
+				//blend_line_sample_c2((UINT8*)dst_addr, (UINT8*)src_addr, w);
 				//blend_line_sample_sse((UINT8*)dst_addr, (UINT8*)src_addr, w);
+				//blend_line_sample_neon((UINT8*)dst_addr, (UINT8*)src_addr, w);
 				dst_addr += pitch;
 				src_addr += src_rowpixels;
 			}

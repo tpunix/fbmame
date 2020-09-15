@@ -138,7 +138,7 @@ static void m_resize_h(int count, uint32_t **rows, int dw, uint8_t **srows, int 
 			uint16x4_t ms2h = vreinterpret_u16_u8(vqtbl1_u8(ms0b, mindex1));
 			uint32x4_t m4 = vmull_u16(ms2l, mcf0);
 			uint32x4_t m6 = vmlal_u16(m4, ms2h, mcf1);
-			vst1q_u32(dst1, m6);
+			vst1q_u32(dst0, m6);
 
 			uint64x2_t ms1 = vld1q_lane_u64((const uint64_t *)s1, ms1, 0);
 			uint8x16_t ms1b = vreinterpretq_u8_u64(ms1);
@@ -314,6 +314,8 @@ void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, in
 				srows[0] = src + k0*sstride;
 				srows[1] = src + k1*sstride;
 			}
+			if(k1>=sh) // sh可能为1
+				srows[1] = srows[0];
 			m_resize_h(2, rows, dw, srows, sw, step_x);
 		}else if(ky==k1){
 			// 需要一个新的缓存行: (k1, new) -> (k0, k1)
