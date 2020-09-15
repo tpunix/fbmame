@@ -27,12 +27,66 @@
 
 /******************************************************************************/
 
+#ifdef __aarch64__
+#define USE_NEON
+#include <arm_neon.h>
+#else
+#define USE_SSE4
+#include <smmintrin.h>
+#endif
 
 
 
+#ifdef USE_SSE4
 
 
-void blend_line_sample(UINT32 *dst, UINT32 *src, int width)
+static UINT8 shufb_alpha[16] =
+{
+	0x03, 0x80, 0x03, 0x80, 0x03, 0x80, 0x03, 0x80,
+	0x07, 0x80, 0x07, 0x80, 0x07, 0x80, 0x07, 0x80,
+};
+
+static UINT8 shufb_h2b[16] =
+{
+	0x01, 0x03, 0x05, 0x07, 0x09, 0x0b, 0x0d, 0x0f,
+	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+};
+
+static inline __m128i _mm_load_i64(void *addr)
+{
+	__m128i ret;
+	__asm volatile ("movq (%1), %q0" : "=x" (ret) : "r" (addr));
+	return ret;
+}
+
+void blend_line_sample_sse(UINT8 *dst, UINT8 *src, int width)
+{
+
+	__m128i ext_alpha = _mm_load_si128((__m128i*)shufb_alpha);
+	__m128i to_pixel  = _mm_load_si128((__m128i*)shufb_h2b);
+	__m128i c_00ff = _mm_set1_epi16(0x00ff);
+
+	while(width>0){
+		__m128i msrc = _mm_load_i64(src);
+		__m128i mdst = _mm_load_i64(dst);
+		__m128i msa = _mm_shuffle_epi8(msrc, ext_alpha);
+		msrc = _mm_cvtepu8_epi16(msrc);
+		mdst = _mm_cvtepu8_epi16(mdst);
+		__m128i msum = _mm_mullo_epi16(msrc, msa) + _mm_mullo_epi16(mdst, c_00ff^msa);
+		__m128i md = _mm_shuffle_epi8(msum, to_pixel);
+		*(UINT64*)dst = _mm_cvtsi128_si64(md);
+
+		src += 8;
+		dst += 8;
+		width -= 2;
+	}
+}
+
+
+#endif
+
+
+void blend_line_sample_c(UINT32 *dst, UINT32 *src, int width)
 {
 	int x;
 
@@ -59,13 +113,41 @@ void blend_line_sample(UINT32 *dst, UINT32 *src, int width)
 	}
 }
 
+
+void blend_line_sample_c1(UINT8 *dst, UINT8 *src, int width)
+{
+	UINT32 sp, dp, sa, da;
+	UINT32 srb, sag, drb, dag;
+
+	while(width>0){
+		sp = *(UINT32*)src;
+		dp = *(UINT32*)dst;
+
+		sa = sp>>24;
+		da = sa^0xff;
+		srb = sp & 0x00ff00ff; // __sr__sb
+		sag = sp & 0x0000ff00; // ____sg__
+		drb = dp & 0x00ff00ff; // __dr__db
+		dag = dp & 0x0000ff00; // ____dg__
+		drb = (srb*sa + drb*da)>>8;     // __drrrdb
+		dag = (sag*sa + dag*da)>>8;     // ____dggg
+		dp = 0xff000000 | (drb&0x00ff00ff) | (dag&0x0000ff00);
+		*(UINT32*)dst = dp;
+
+		src += 4;
+		dst += 4;
+		width -= 1;
+	}
+}
+
+
 /******************************************************************************/
 
-void ne10_img_resize_bilinear_rgba_c(UINT8* dst, UINT32 dst_width, UINT32 dst_height, UINT32 dst_stride,
-                                     UINT8* src, UINT32 src_width, UINT32 src_height, UINT32 src_stride);
 void m_resize_rgba_c(UINT8* dst, int dst_width, int dst_height, int dst_stride,
-					 UINT8* src, int src_width, int src_height, int src_stride);
+					 UINT8* src, int src_width, int src_height, int src_stride, UINT32 *palette);
 
+
+static UINT8 srcbuf[0x10000];
 
 static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int width, int height, int pitch)
 {
@@ -89,38 +171,36 @@ static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 
 
 	if(format==TEXFORMAT_RGB32 || (format==TEXFORMAT_ARGB32 && mode==BLENDMODE_NONE)){
-#if 1
 		m_resize_rgba_c(
-		//ne10_img_resize_bilinear_rgba_c(
 			dst_addr, w, h, pitch,
-			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4);
-#else
-		for(y=0; y<h; y++){
-			memcpy(dst_addr, src_addr, w*4);
-			dst_addr += pitch;
-			src_addr += prim->texture.rowpixels;
-		}
-#endif
+			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4, NULL);
+	}else if(format==TEXFORMAT_PALETTE16){
+		m_resize_rgba_c(
+			dst_addr, w, h, pitch,
+			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*2, (UINT32*)prim->texture.palette());
 	}else if(format==TEXFORMAT_ARGB32 && mode==BLENDMODE_ALPHA){
 		UINT32 pr = 256.0f * prim->color.r;
 		UINT32 pg = 256.0f * prim->color.g;
 		UINT32 pb = 256.0f * prim->color.b;
 		UINT32 pa = 256.0f * prim->color.a;
+		int src_rowpixels = prim->texture.rowpixels;
 
-		if(w>tw)
-			w = tw;
-		if(th>1){
-			if(h>th)
-				h = th;
+		if(w!=tw || h!=th){
+			m_resize_rgba_c(
+				srcbuf, w, h, pitch,
+				(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4, NULL);
+			src_addr = (UINT32*)srcbuf;
+			src_rowpixels = pitch/4;
 		}
 
 		if(pr>=256 && pg>=256 && pb>=256 && pa>=256){
 			// simple mode, no color
 			for(y=0; y<h; y++){
-				blend_line_sample((UINT32*)dst_addr, (UINT32*)src_addr, w);
+				//blend_line_sample_c((UINT32*)dst_addr, (UINT32*)src_addr, w);
+				blend_line_sample_c1((UINT8*)dst_addr, (UINT8*)src_addr, w);
+				//blend_line_sample_sse((UINT8*)dst_addr, (UINT8*)src_addr, w);
 				dst_addr += pitch;
-				if(th>1)
-					src_addr += prim->texture.rowpixels;
+				src_addr += src_rowpixels;
 			}
 
 		}else{
@@ -152,8 +232,7 @@ static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 					}
 				}
 				dst_addr += pitch;
-				if(th>1)
-					src_addr += prim->texture.rowpixels;
+				src_addr += src_rowpixels;
 			}
 		}
 	}

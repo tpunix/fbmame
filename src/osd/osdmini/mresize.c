@@ -29,8 +29,8 @@ static uint8_t row_buf1[0x8000];
 
 // 两个src缓存. 最大值: 1920x4 = 7680
 // 仅用于palette格式的src
-//static uint8_t src_buf0[0x2000];
-//static uint8_t src_buf1[0x2000];
+static uint8_t src_buf0[0x2000];
+static uint8_t src_buf1[0x2000];
 
 #if defined(USE_SSE4)
 static uint8_t shufb_b2h[16] =
@@ -258,7 +258,27 @@ static void m_resize_v(uint8_t *dst, int dw, uint32_t **rows, int cf)
 }
 
 
-void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, int sw, int sh, int sstride)
+static uint8_t *pal_to_rgba(uint8_t *dst, uint8_t *src, int width, uint32_t *palette)
+{
+	uint32_t *pd = (uint32_t*)dst;
+	uint16_t *ps = (uint16_t*)src;
+
+	while(width>=4){
+		*pd++ = palette[*ps++];
+		*pd++ = palette[*ps++];
+		*pd++ = palette[*ps++];
+		*pd++ = palette[*ps++];
+		width -= 4;
+	}
+	while(width>0){
+		*pd++ = palette[*ps++];
+		width -= 1;
+	}
+
+	return dst;
+}
+
+void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, int sw, int sh, int sstride, uint32_t *palette)
 {
 	int y, fy, cf, step_y, step_x;
 	int ky, k0, k1;
@@ -287,8 +307,13 @@ void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, in
 			// 需要新的两个src缓存行
 			k0 = ky;
 			k1 = ky+1;
-			srows[0] = src + k0*sstride;
-			srows[1] = srows[0] + sstride;
+			if(palette){
+				srows[0] = pal_to_rgba(src_buf0, src+k0*sstride, sw, palette);
+				srows[1] = pal_to_rgba(src_buf1, src+k1*sstride, sw, palette);
+			}else{
+				srows[0] = src + k0*sstride;
+				srows[1] = src + k1*sstride;
+			}
 			m_resize_h(2, rows, dw, srows, sw, step_x);
 		}else if(ky==k1){
 			// 需要一个新的缓存行: (k1, new) -> (k0, k1)
@@ -297,7 +322,11 @@ void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, in
 			rows[0] = tmp;
 			k0 = k1;
 			k1 = ky+1;
-			srows[1] = src + k1*sstride;
+			if(palette){
+				srows[1] = pal_to_rgba(src_buf1, src+k1*sstride, sw, palette);
+			}else{
+				srows[1] = src + k1*sstride;
+			}
 			m_resize_h(1, rows, dw, srows, sw, step_x);
 		}else{
 			// 不需要更新缓存行
