@@ -255,7 +255,7 @@ static void do_render(render_primitive_list *primlist)
 		draw_primlist(primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch);
 
 		tm = osd_ticks()-tm;
-		//printf("render time: %d\n", (int)tm);
+		printf("render time: %d\n", (int)tm);
 		qobj_set_ready(draw_obj);
 	}
 

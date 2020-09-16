@@ -101,6 +101,9 @@ OSDOBJS += \
 	$(OSDOBJ)/modules/debugger/debugwin.o \
 	$(OSDOBJ)/modules/debugger/debugqt.o \
 
+ifeq ($(ARCH), arm64)
+OSDOBJS += $(MINIOBJ)/neon64_mresize.o
+endif
 
 LIBS += -lasound -lpthread -lrt
 BASELIBS += -lpthread
@@ -138,3 +141,7 @@ $(LIBOCORE): $(OSDCOREOBJS)
 
 $(LIBOSD): $(OSDOBJS)
 
+
+$(MINIOBJ)/%.o: $(MINISRC)/%.s
+	@echo Compiling $<...
+	$(CC) -Wall -O3 -c $< -o $@
