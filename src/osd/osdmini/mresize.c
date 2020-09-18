@@ -22,7 +22,7 @@ static uint8_t src_buf1[0x2000];
 #if defined(__aarch64__)
 
 extern "C" void m_resize_h_neon64(uint8_t *dst, int dw, uint8_t *src, int fx, int dx);
-extern "C" void m_resize_v_neon64(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf0, cf1);
+extern "C" void m_resize_v_neon64(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf0, int cf1);
 
 #define RESIZE_H  m_resize_h_neon64
 #define RESIZE_V  m_resize_v_neon64
