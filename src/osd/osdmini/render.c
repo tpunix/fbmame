@@ -382,7 +382,7 @@ static void draw_rect_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 				UINT32 dr = (r + (dp&0x00ff0000)*inva)>>24;
 				UINT32 dg = (g + (dp&0x0000ff00)*inva)>>16;
 				UINT32 db = (b + (dp&0x000000ff)*inva)>>8;
-				*dst++ = 0xff000000 | (dr<<16) | (dg<<8) | 0;
+				*dst++ = 0xff000000 | (dr<<16) | (dg<<8) | db;
 			}
 			dst_addr += pitch;
 		}
