@@ -140,6 +140,8 @@ void osd_video_init(void)
 	int i;
 	struct mq_attr mattr;
 
+	g_pause = 0;
+
 	osd_video_init_backend();
 
 	mattr.mq_flags = 0;
@@ -189,13 +191,13 @@ void video_show_fps(void)
 //============================================================
 
 
+int g_pause;
 float aspect_set;
 static float game_aspect=0;
 static int game_width=0, game_height=0;
 static int fb_draw_w=0, fb_draw_h=0;
 static int fb_draw_offset = 0;
 
-static int prim_flags = 0;
 static void dump_primlist(render_primitive_list *primlist)
 {
 	const render_primitive *prim = primlist->first();
@@ -244,19 +246,21 @@ static void do_render(render_primitive_list *primlist)
 	//dump_primlist(primlist);
 	//video_show_fps();
 
-	draw_obj = get_idle_qobj(fbo_queue);
-	if(draw_obj){
-		fb_draw_ptr = (UINT8*)(draw_obj->data1) + fb_draw_offset;
-		// do the drawing here
-		INT64 tm = osd_ticks();
+	if(g_pause==0){
+		draw_obj = get_idle_qobj(fbo_queue);
+		if(draw_obj){
+			fb_draw_ptr = (UINT8*)(draw_obj->data1) + fb_draw_offset;
+			// do the drawing here
+			INT64 tm = osd_ticks();
 
-		//software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
-		//software_renderer<UINT32, 0,0,0, 16,8,0, false, true>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
-		draw_primlist(primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch);
+			//software_renderer<UINT32, 0,0,0, 16,8,0>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
+			//software_renderer<UINT32, 0,0,0, 16,8,0, false, true>::draw_primitives(*primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch/4);
+			draw_primlist(primlist, fb_draw_ptr, fb_draw_w, fb_draw_h, fb_pitch);
 
-		tm = osd_ticks()-tm;
-		//printf("render time: %d\n", (int)tm);
-		qobj_set_ready(draw_obj);
+			tm = osd_ticks()-tm;
+			//printf("render time: %d\n", (int)tm);
+			qobj_set_ready(draw_obj);
+		}
 	}
 
 	primlist->release_lock();

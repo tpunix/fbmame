@@ -88,6 +88,7 @@ extern UINT8 *fb_base_addr;
 
 extern float aspect_set;
 extern int g_scanline_mode;
+extern int g_pause;
 
 
 //============================================================

@@ -115,7 +115,8 @@ void mini_osd_interface::init(running_machine &machine)
 
 	if(options().slave()){
 		input_register_remote();
-		video_register_remote();
+		//video_register_remote();
+		video_register_fbcon();
 	}else{
 		input_register_vt();
 		video_register_fbcon();

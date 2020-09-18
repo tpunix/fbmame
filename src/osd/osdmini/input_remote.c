@@ -21,6 +21,70 @@
 #include <mqueue.h>
 #include <errno.h>
 
+#include <sys/shm.h>
+
+
+/******************************************************************************/
+
+
+#define SHM_KEY 0x76057810
+#define SHM_SIZE 0x00010000
+
+
+static int shmid;
+static UINT8 *shm_addr;
+static UINT8 *shm_ctrl;
+
+struct shm_video
+{
+	int magic;
+
+	int fbx;
+	int fby;
+	int fbpp;
+	int fbpitch;
+
+	int cmd_state;
+};
+
+
+void shm_init(void)
+{
+
+	shmid = shmget(SHM_KEY, SHM_SIZE, 0666);
+	if(shmid<0){
+		perror("shmget");
+		exit(-1);
+	}
+
+	shm_addr = (UINT8*)shmat(shmid, NULL, 0);
+	if(shm_addr==(void*)-1){
+		perror("shmat");
+		exit(-1);
+	}
+
+	printf("shm id:%08x addr:%p\n", shmid, shm_addr);
+
+	shm_ctrl = shm_addr+SHM_SIZE-4096;
+
+}
+
+
+void shm_exit(void)
+{
+	shmdt(shm_addr);
+}
+
+
+void remote_set_state(int state)
+{
+	struct shm_video *sv = (struct shm_video*)shm_ctrl;
+	sv->cmd_state = state;
+}
+
+
+/******************************************************************************/
+
 
 /******************************************************************************/
 
@@ -28,6 +92,7 @@ mqd_t input_mq;
 
 void input_init_remote(void)
 {
+	shm_init();
 
 	input_mq = mq_open("/mq_input", O_RDWR|O_NONBLOCK);
 	if(input_mq<0){
@@ -61,12 +126,15 @@ void input_handle_cmd(int key, int value)
 	}else if(key==0x8003){
 		g_machine->pause();
 	}else if(key==0x8004){
+		g_pause = 0;
 		g_machine->resume();
 	}else if(key==0x8005){
 		g_machine->schedule_exit();
 	}
 }
 
+
+#define KEY_P           25
 
 void input_update_remote(void)
 {
@@ -83,6 +151,9 @@ void input_update_remote(void)
 			input_handle_cmd(key, value);
 			continue;
 		}
+		if(key==KEY_P && value){
+			g_pause = 1;
+		}
 
 		if(value){
 			vt_keystate[key] = 1;
@@ -96,6 +167,7 @@ void input_update_remote(void)
 void input_exit_remote(void)
 {
 	mq_close(input_mq);
+	shm_exit();
 }
 
 
