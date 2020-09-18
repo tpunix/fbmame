@@ -194,7 +194,7 @@ void blend_line_sample_c2(UINT8 *dst, UINT8 *src, int width)
 /******************************************************************************/
 
 void m_resize_rgba_c(UINT8* dst, int dst_width, int dst_height, int dst_stride,
-					 UINT8* src, int src_width, int src_height, int src_stride, UINT32 *palette);
+					 UINT8* src, int src_width, int src_height, int src_stride, UINT32 *palette, int scanline);
 
 
 static UINT8 srcbuf[0x10000];
@@ -219,15 +219,17 @@ static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 	int format = PRIMFLAG_GET_TEXFORMAT(prim->flags);
 	int mode = PRIMFLAG_GET_BLENDMODE(prim->flags);
 
+	int scanline = (prim->flags&0x2000)? g_scanline_mode : 0;
+
 
 	if(format==TEXFORMAT_RGB32 || (format==TEXFORMAT_ARGB32 && mode==BLENDMODE_NONE)){
 		m_resize_rgba_c(
 			dst_addr, w, h, pitch,
-			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4, NULL);
+			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4, NULL, scanline);
 	}else if(format==TEXFORMAT_PALETTE16){
 		m_resize_rgba_c(
 			dst_addr, w, h, pitch,
-			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*2, (UINT32*)prim->texture.palette());
+			(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*2, (UINT32*)prim->texture.palette(), scanline);
 	}else if(format==TEXFORMAT_ARGB32 && mode==BLENDMODE_ALPHA){
 		UINT32 pr = 256.0f * prim->color.r;
 		UINT32 pg = 256.0f * prim->color.g;
@@ -240,7 +242,7 @@ static void draw_quad_rgb32(const render_primitive *prim, UINT8 *dst_addr, int w
 			int new_pitch = ((w+7)&~7)*4;
 			m_resize_rgba_c(
 				srcbuf, w, h, new_pitch,
-				(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4, NULL);
+				(UINT8*)prim->texture.base, tw, th, prim->texture.rowpixels*4, NULL, 0);
 			src_addr = (UINT32*)srcbuf;
 			src_rowpixels = new_pitch/4;
 		}

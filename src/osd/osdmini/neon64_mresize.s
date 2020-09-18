@@ -53,11 +53,10 @@ _cf_table:
 
 
 
-// void m_resize_v(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf)
+// void m_resize_v(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf0, int cf1)
 .global m_resize_v_neon64
 m_resize_v_neon64:
-	dup		V3.8H, W4
-	eor		W4, W4, 0xffff
+	dup		V3.8H, W5
 	adr		X5, _px_table
 	dup		V2.8H, W4
 	ld1		{V6.8B}, [X5]

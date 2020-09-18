@@ -42,6 +42,8 @@ void (*osd_input_init)(void) = NULL;
 void (*osd_input_update)(void) = NULL;
 void (*osd_input_exit)(void) = NULL;
 
+int g_scanline_mode;
+
 
 //============================================================
 //  mini_osd_options
@@ -50,7 +52,8 @@ void (*osd_input_exit)(void) = NULL;
 
 const options_entry mini_osd_options::s_option_entries[] =
 {
-	{"slave", "0",    OPTION_BOOLEAN, "mame work in slave mode" },
+	{"slave",    "0", OPTION_BOOLEAN, "mame work in slave mode" },
+	{"scanline", "0", OPTION_INTEGER, "display scanline" },
 	{ NULL }
 };
 
@@ -104,6 +107,9 @@ void mini_osd_interface::init(running_machine &machine)
 	}else if(!strcmp(aspect_value, "full")){
 		aspect_set = 2222;
 	}
+
+	g_scanline_mode = options().scanline();
+	printk("scanline_mode: %d\n", g_scanline_mode);
 
 	g_machine = &machine;
 

@@ -23,6 +23,7 @@ public:
 	mini_osd_options();
 
 	bool slave() const { return bool_value("slave"); }
+	int scanline() const { return int_value("scanline"); }
 
 private:
 	static const options_entry s_option_entries[];
@@ -86,6 +87,7 @@ extern int fb_xres, fb_yres, fb_bpp, fb_pitch;
 extern UINT8 *fb_base_addr;
 
 extern float aspect_set;
+extern int g_scanline_mode;
 
 
 //============================================================

@@ -22,7 +22,7 @@ static uint8_t src_buf1[0x2000];
 #if defined(__aarch64__)
 
 extern "C" void m_resize_h_neon64(uint8_t *dst, int dw, uint8_t *src, int fx, int dx);
-extern "C" void m_resize_v_neon64(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf);
+extern "C" void m_resize_v_neon64(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf0, cf1);
 
 #define RESIZE_H  m_resize_h_neon64
 #define RESIZE_V  m_resize_v_neon64
@@ -68,12 +68,10 @@ static void m_resize_h(uint8_t *dst, int dw, uint8_t *src, int fx, int dx)
 }
 
 
-static void m_resize_v(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf)
+static void m_resize_v(uint8_t *dst, int dw, uint8_t *row0, uint8_t *row1, int cf0, int cf1)
 {
 	uint16_t *s0 = (uint16_t*)row0;
 	uint16_t *s1 = (uint16_t*)row1;
-	int cf0 = COEF_MASK-cf;
-	int cf1 = cf;
 
 	while(dw>0){
 		dst[0] = (s0[0]*cf0 + s1[0]*cf1)>>24;
@@ -117,9 +115,9 @@ static uint8_t *pal_to_rgba(uint8_t *dst, uint8_t *src, int width, uint32_t *pal
 }
 
 
-void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, int sw, int sh, int sstride, uint32_t *palette)
+void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, int sw, int sh, int sstride, uint32_t *palette, int scanline)
 {
-	int y, fx, fy, cf, step_y, step_x;
+	int y, fx, fy, cf0, cf1, step_y, step_x;
 	int ky, k0, k1;
 	uint8_t *rows[2];
 	uint8_t *srows[2];
@@ -142,7 +140,8 @@ void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, in
 
 
 	for(y=0; y<dh; y++){
-		cf = fy&COEF_MASK;
+		cf1 = fy&COEF_MASK;
+		cf0 = COEF_MASK-cf1;
 		ky = fy>>COEF_BITS; // 当前行对应的src行
 
 		if(ky>k1){
@@ -178,7 +177,15 @@ void m_resize_rgba_c(uint8_t* dst, int dw, int dh, int dstride, uint8_t* src, in
 		}
 
 		//printf("Line %3d: src=%3d  k0=%3d k1=%3d\n", y, ky, k0, k1);
-		RESIZE_V(dst, dw, rows[0], rows[1], cf);
+		if(scanline){
+			if((y%scanline)==(scanline-1)){
+				cf0 >>= 1;
+				cf1 >>= 1;
+			}
+			RESIZE_V(dst, dw, rows[0], rows[1], cf0, cf1);
+		}else{
+			RESIZE_V(dst, dw, rows[0], rows[1], cf0, cf1);
+		}
 
 		dst += dstride;
 		fy += step_y;  // 下一行
