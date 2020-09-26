@@ -40,7 +40,7 @@ This is not a bug (real machine behaves the same).
 #include "machine/st0016.h"
 #include "cpu/mips/r3000.h"
 
-//#define DEBUG_CHAR
+#define DEBUG_CHAR
 
 #define SPRITE_GLOBAL_X 0
 #define SPRITE_GLOBAL_Y 1
@@ -120,6 +120,7 @@ public:
 	DECLARE_WRITE8_MEMBER(st0016_rom_bank_w);
 };
 
+#define BG_ENABLE
 
 UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
@@ -129,7 +130,41 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 	UINT8 *pixels=(UINT8 *)m_tileram;
 	const pen_t * const pens = m_palette->pens();
 
-	bitmap.fill(0, cliprect);
+//Table surface seems to be tiles, but display corrupts when switching the scene if always ON.
+//Currently the tiles are OFF.
+#ifdef BG_ENABLE
+	UINT8 tile_width  = (m_vidregs[2] >> 0) & 0xFF;
+	UINT8 tile_height = (m_vidregs[2] >> 8) & 0xFF;
+	if(tile_width && tile_height)
+	{
+		// 16x16 tile
+		UINT16 *map = &m_sprram[0x2000];
+		for(yw = 0; yw < tile_height; yw++)
+		{
+			for(xw = 0; xw < tile_width; xw++)
+			{
+				UINT16 tile = map[yw * 128 + xw * 2];
+				if(tile >= 0x2000) continue;
+
+				address = tile * SPRITE_DATA_GRANULARITY;
+				for(y = 0; y < 16; y++)
+				{
+					for(x = 0; x < 16; x++)
+					{
+						UINT8 pen = pixels[BYTE_XOR_LE(address)];
+						if(pen)
+						{
+							bitmap.pix32(yw * 16 + y, xw * 16 + x) = pens[pen];
+						}
+						address++;
+					}
+				}
+			}
+		}
+	}
+	else
+#endif
+		bitmap.fill(0, cliprect);
 
 	while((sprite_list[SUBLIST_OFFSET]&SPRITE_LIST_END_MARKER)==0 && sprite_list<sprite_list_end)
 	{
