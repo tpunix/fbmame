@@ -40,7 +40,9 @@ This is not a bug (real machine behaves the same).
 #include "machine/st0016.h"
 #include "cpu/mips/r3000.h"
 
-#define DEBUG_CHAR
+//#define DEBUG_CHAR
+#define BG_ENABLE
+
 
 #define SPRITE_GLOBAL_X 0
 #define SPRITE_GLOBAL_Y 1
@@ -120,8 +122,6 @@ public:
 	DECLARE_WRITE8_MEMBER(st0016_rom_bank_w);
 };
 
-#define BG_ENABLE
-
 UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	int x,y,address,xs,xs2,ys,ys2,height,width,xw,yw,xb,yb,sizex,sizey;
@@ -135,25 +135,26 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 #ifdef BG_ENABLE
 	UINT8 tile_width  = (m_vidregs[2] >> 0) & 0xFF;
 	UINT8 tile_height = (m_vidregs[2] >> 8) & 0xFF;
-	if(tile_width && tile_height)
-	{
+	int first = 1;
+	if(tile_width && tile_height){
 		// 16x16 tile
 		UINT16 *map = &m_sprram[0x2000];
-		for(yw = 0; yw < tile_height; yw++)
-		{
-			for(xw = 0; xw < tile_width; xw++)
-			{
+		for(yw = 0; yw < tile_height; yw++){
+			for(xw = 0; xw < tile_width; xw++){
 				UINT16 tile = map[yw * 128 + xw * 2];
 				if(tile >= 0x2000) continue;
 
 				address = tile * SPRITE_DATA_GRANULARITY;
-				for(y = 0; y < 16; y++)
-				{
-					for(x = 0; x < 16; x++)
-					{
+				for(y = 0; y < 16; y++){
+					for(x = 0; x < 16; x++){
 						UINT8 pen = pixels[BYTE_XOR_LE(address)];
-						if(pen)
-						{
+						if(pen){
+							if(first){
+								if(pens[pen]!=0xff004002){
+									goto _no_bg;
+								}
+								first = 0;
+							}
 							bitmap.pix32(yw * 16 + y, xw * 16 + x) = pens[pen];
 						}
 						address++;
@@ -161,10 +162,12 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 				}
 			}
 		}
-	}
-	else
+	}else
 #endif
+	{
+_no_bg:
 		bitmap.fill(0, cliprect);
+	}
 
 	while((sprite_list[SUBLIST_OFFSET]&SPRITE_LIST_END_MARKER)==0 && sprite_list<sprite_list_end)
 	{
@@ -524,6 +527,8 @@ static INPUT_PORTS_START( srmp5 )
 INPUT_PORTS_END
 
 
+#ifdef DEBUG_CHAR
+
 static const gfx_layout tile_16x8x8_layout =
 {
 	16,8,
@@ -552,6 +557,8 @@ static GFXDECODE_START( srmp5 )
 	GFXDECODE_ENTRY( "gfx1", 0, tile_16x8x8_layout,  0x0, 0x800  )
 	//GFXDECODE_ENTRY( "gfx1", 0, tile_16x16x8_layout, 0x0, 0x800  )
 GFXDECODE_END
+
+#endif
 
 static MACHINE_CONFIG_START( srmp5, srmp5_state )
 

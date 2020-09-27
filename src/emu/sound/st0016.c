@@ -41,7 +41,8 @@ st0016_device::st0016_device(const machine_config &mconfig, const char *tag, dev
 
 void st0016_device::device_start()
 {
-	m_stream = stream_alloc(0, 2, 44100);
+	//m_stream = stream_alloc(0, 2, 44100);
+	m_stream = stream_alloc(0, 2, 57600);
 	m_ram_read_cb.resolve_safe(0);
 }
 
