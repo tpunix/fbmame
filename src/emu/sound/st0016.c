@@ -42,7 +42,7 @@ st0016_device::st0016_device(const machine_config &mconfig, const char *tag, dev
 void st0016_device::device_start()
 {
 	//m_stream = stream_alloc(0, 2, 44100);
-	m_stream = stream_alloc(0, 2, 57600);
+	m_stream = stream_alloc(0, 2, 52430);
 	m_ram_read_cb.resolve_safe(0);
 }
 
@@ -58,7 +58,7 @@ void st0016_device::sound_stream_update(sound_stream &stream, stream_sample_t **
 	INT32 mix[48000*2];
 	INT32 *mixp;
 	INT16 sample;
-	int sptr, eptr, freq, lsptr, leptr;
+	int sptr, eptr, freq, lsptr, leptr, vol0, vol1;
 
 	memset(mix, 0, sizeof(mix[0])*samples*2);
 
@@ -75,13 +75,19 @@ void st0016_device::sound_stream_update(sound_stream &stream, stream_sample_t **
 			freq = slot[0x11]<<8 | slot[0x10];
 			lsptr = slot[0x06]<<16 | slot[0x05]<<8 | slot[0x04];
 			leptr = slot[0x0a]<<16 | slot[0x09]<<8 | slot[0x08];
+			vol0 = slot[0x14];
+			vol1 = slot[0x15];
+			if(freq==0x4ae9){
+				vol0 *= 4;
+				vol1 *= 4;
+			}
 
 			for (snum = 0; snum < samples; snum++)
 			{
 				sample = m_ram_read_cb((sptr + m_vpos[v]) & 0x1fffff) << 8;
 
-				*mixp++ += (sample * (char)slot[0x14]) >> 8;
-				*mixp++ += (sample * (char)slot[0x15]) >> 8;
+				*mixp++ += (sample * vol0) >> 8;
+				*mixp++ += (sample * vol1) >> 8;
 
 				m_frac[v] += freq;
 				m_vpos[v] += (m_frac[v]>>16);
