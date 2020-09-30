@@ -63,7 +63,7 @@ static void *video_fbcon_vblank_thread(void *param)
 			release_obj = new_obj;
 
 			if(vblank_wait){
-				osd_sleep(16000);
+				osd_sleep(6000);
 			}
 		}else{
 			osd_sleep(3000);

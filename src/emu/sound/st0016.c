@@ -159,6 +159,29 @@ WRITE8_MEMBER( st0016_device::st0016_snd_w )
 				m_regs[vbase+0xa]<<16 | m_regs[vbase+0x9]<<8 | m_regs[vbase+0x8],
 				m_regs[vbase+0x11]<<8 | m_regs[vbase+0x10],
 				m_regs[vbase+0x16]));
+#if 0
+			{
+				static int snd_cnt = 0;
+				UINT8 *slot = (UINT8*)&m_regs[voice*32];
+				int sptr = slot[0x02]<<16 | slot[0x01]<<8 | slot[0x00];
+				int eptr = slot[0x0e]<<16 | slot[0x0d]<<8 | slot[0x0c];
+				int freq = slot[0x11]<<8 | slot[0x10];
+				if(freq==0x4ae9){
+					char name[128];
+
+					sprintf(name, "%d_%08x_%08x_%04x.bin", snd_cnt, sptr, eptr, freq);
+					FILE *fp = fopen(name, "wb");
+					int i;
+					for(i=sptr; i<eptr; i++){
+						UINT8 data = m_ram_read_cb(i);
+						fwrite(&data, 1, 1, fp);
+					}
+					fclose(fp);
+					snd_cnt += 1;
+				}
+
+			}
+#endif
 		}
 	}
 }
