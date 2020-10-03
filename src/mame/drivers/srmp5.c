@@ -76,6 +76,8 @@ public:
 		m_subcpu(*this, "sub")
 	{ }
 
+	virtual void machine_start();
+
 	UINT32 m_databank;
 	UINT16 *m_tileram;
 	UINT16 *m_palram;
@@ -242,6 +244,21 @@ _no_bg:
 #endif
 
 	return 0;
+}
+
+void srmp5_state::machine_start()
+{
+	save_item(NAME(m_input_select));
+	save_item(NAME(m_cmd1));
+	save_item(NAME(m_cmd2));
+	save_item(NAME(m_cmd_stat));
+	save_item(NAME(m_databank));
+	save_pointer(NAME(m_tileram), 0x100000/2);
+	save_pointer(NAME(m_sprram), 0x80000/2);
+#ifdef DEBUG_CHAR
+	save_pointer(NAME(m_tileduty), 0x2000);
+#endif
+	save_item(NAME(m_vidregs));
 }
 
 READ32_MEMBER(srmp5_state::srmp5_palette_r)

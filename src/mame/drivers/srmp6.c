@@ -107,6 +107,7 @@ public:
 	DECLARE_WRITE16_MEMBER(paletteram_w);
 	DECLARE_READ16_MEMBER(srmp6_irq_ack_r);
 	DECLARE_DRIVER_INIT(INIT);
+	virtual void machine_start();
 	virtual void video_start();
 	UINT32 screen_update_srmp6(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void update_palette();
@@ -162,6 +163,12 @@ void srmp6_state::update_palette()
 	}
 }
 
+void srmp6_state::machine_start()
+{
+	save_item(NAME(m_input_select));
+}
+
+
 void srmp6_state::video_start()
 {
 	m_tileram = auto_alloc_array_clear(machine(), UINT16, 0x100000*16/2);
@@ -173,6 +180,15 @@ void srmp6_state::video_start()
 	m_gfxdecode->gfx(0)->set_granularity(256);
 
 	m_brightness = 0x60;
+
+	save_pointer(NAME(m_tileram), 0x100000*16/2);
+	save_pointer(NAME(m_sprram_old), 0x80000/2);
+	save_item(NAME(m_brightness));
+	save_item(NAME(m_destl));
+	save_item(NAME(m_lastb));
+	save_item(NAME(m_lastb2));
+
+	m_gfxdecode->gfx(0)->mark_all_dirty();
 }
 
 #if 0
