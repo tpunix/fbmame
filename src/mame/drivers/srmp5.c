@@ -131,6 +131,10 @@ UINT32 srmp5_state::screen_update_srmp5(screen_device &screen, bitmap_rgb32 &bit
 	UINT16 *sprite_list_end=&m_sprram[0x4000]; //guess
 	UINT8 *pixels=(UINT8 *)m_tileram;
 	const pen_t * const pens = m_palette->pens();
+	int min_x = cliprect.min_x;
+	int min_y = cliprect.min_y;
+	int max_x = cliprect.max_x;
+	int max_y = cliprect.max_y;
 
 //Table surface seems to be tiles, but display corrupts when switching the scene if always ON.
 //Currently the tiles are OFF.
@@ -171,6 +175,7 @@ _no_bg:
 		bitmap.fill(0, cliprect);
 	}
 
+	//UINT64 tm = osd_ticks();
 	while((sprite_list[SUBLIST_OFFSET]&SPRITE_LIST_END_MARKER)==0 && sprite_list<sprite_list_end)
 	{
 		UINT16 *sprite_sublist=&m_sprram[sprite_list[SUBLIST_OFFSET]<<SUBLIST_OFFSET_SHIFT];
@@ -205,18 +210,26 @@ _no_bg:
 						for(ys=0;ys<=sizey;ys++)
 						{
 							ys2 = (sppal & 0x4000) ? ys : (sizey - ys);
-							for(xs=0;xs<=sizex;xs++)
+							ys2 += yb;
+							if(ys2<=max_y && ys2>=min_y)
 							{
-								UINT8 pen=pixels[address];
-								xs2 = (sppal & 0x8000) ? (sizex - xs) : xs;
-								if(pen)
+								UINT32 *dst = (UINT32*)bitmap.raw_pixptr(ys2);
+								for(xs=0;xs<=sizex;xs++)
 								{
-									if(cliprect.contains(xb+xs2, yb+ys2))
+									xs2 = (sppal & 0x8000) ? (sizex - xs) : xs;
+									xs2 += xb;
+									if(xs2<=max_x)
 									{
-										bitmap.pix32(yb+ys2, xb+xs2) = pens[pen+sppal_idx];
+										UINT8 pen=pixels[address];
+										if(pen)
+										{
+											*(dst+xs2) = pens[pen+sppal_idx];
+										}
 									}
+									++address;
 								}
-								++address;
+							}else{
+								address += sizex+1;
 							}
 						}
 					}
@@ -243,6 +256,8 @@ _no_bg:
 	}
 #endif
 
+	//tm = osd_ticks()-tm;
+	//printf("srmp5: %d\n", (int)tm);
 	return 0;
 }
 
@@ -585,7 +600,7 @@ static MACHINE_CONFIG_START( srmp5, srmp5_state )
 	MCFG_CPU_IO_MAP(st0016_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", srmp5_state,  irq0_line_hold)
 
-	MCFG_CPU_ADD("sub", R3051, 15000000) // change from 25M to 15M
+	MCFG_CPU_ADD("sub", R3051, 16500000) // change from 25M to 15M
 	MCFG_R3000_ENDIANNESS(ENDIANNESS_LITTLE)
 	MCFG_CPU_PROGRAM_MAP(srmp5_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", srmp5_state,  irq4_line_assert)
